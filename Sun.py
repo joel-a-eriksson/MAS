@@ -4,33 +4,27 @@ from datetime import date,datetime,time, tzinfo, timedelta
 import sys
 import time as _time
 
-ZERO = timedelta(0)
-HOUR = timedelta(hours=1)
-STDOFFSET = timedelta(seconds = -_time.timezone)
-if _time.daylight:
-	DSTOFFSET = timedelta(seconds = -_time.altzone)
-else:
-	DSTOFFSET = STDOFFSET
-
-DSTDIFF = DSTOFFSET - STDOFFSET
-
-
 class LocalTimezone(tzinfo):
+	'''
+	This class represent the local time zone (on the computer
+	which the script is executed on)
+	'''
 	def utcoffset(self, dt):
 		if self._isdst(dt):
-			return DSTOFFSET
+			return timedelta(seconds = -_time.altzone)
 		else:
-			return STDOFFSET
+			return timedelta(seconds = -_time.timezone)
 			
 	def dst(self, dt):
 		if self._isdst(dt):
-			return DSTDIFF
+			return (timedelta(seconds = -_time.altzone) - 
+					timedelta(seconds = -_time.timezone))
 		else:
-			return ZERO
+			return timedelta(0)
 			
 	def tzname(self, dt):
 		return _time.tzname[self._isdst(dt)]
-		
+
 	def _isdst(self, dt):
 		tt = (dt.year, dt.month, dt.day,
 				dt.hour, dt.minute, dt.second,
@@ -39,7 +33,7 @@ class LocalTimezone(tzinfo):
 		tt = _time.localtime(stamp)
 		return tt.tm_isdst > 0	
 
-class sun:
+class Sun:
 	''' 
 	Calculate sunrise and sunset based on equations from NOAA
 	http://www.srrb.noaa.gov/highlights/sunrise/calcdetails.html
@@ -66,22 +60,21 @@ class sun:
 		if when is None : when = datetime.now(tz=LocalTimezone())
 		self.__preptime(when)
 		self.__calc()
-		return sun.__timefromdecimalday(self.sunrise_t)
+		return self.__timefromdecimalday(self.sunrise_t)
 	  
 	def sunset(self,when=None):
 		if when is None : when = datetime.now(tz=LocalTimezone())
 		self.__preptime(when)
 		self.__calc()
-		return sun.__timefromdecimalday(self.sunset_t)
+		return self.__timefromdecimalday(self.sunset_t)
 	  
 	def solarnoon(self,when=None):
 		if when is None : when = datetime.now(tz=LocalTimezone())
 		self.__preptime(when)
 		self.__calc()
-		return sun.__timefromdecimalday(self.solarnoon_t)
+		return self.__timefromdecimalday(self.solarnoon_t)
 		
-	@staticmethod
-	def __timefromdecimalday(day):
+	def __timefromdecimalday(self, day):
 		'''
 		returns a datetime.time object.
 		
@@ -153,12 +146,9 @@ class sun:
 
 if __name__ == "__main__":
 	if (len(sys.argv)>1):
-		s=sun(lat=float(sys.argv[1]),long=float(sys.argv[2]))
+		s=Sun(lat=float(sys.argv[1]),long=float(sys.argv[2]))
 	else:
-		s = sun(lat=59.17,long=18.3) # Stockholm
-	print("Time now: " + str(datetime.today()))
-	print("Time now: " + str(datetime.now()))
+		s = Sun(lat=59.17,long=18.3) # Default Stockholm / Sweden
+		
 	print("Time now: " + str(datetime.now(tz=LocalTimezone())))
-	print("Time now: " + str(datetime.utcnow()))
 	print("Sunrise: "+str(s.sunrise())+"  Solarnoon: "+str(s.solarnoon())+"  Sunset: " +str(s.sunset()))
-	print("Sunrise: "+str(s.sunrise(datetime.now()))+"  Solarnoon: "+str(s.solarnoon(datetime.now()))+"  Sunset: " +str(s.sunset(datetime.now())))
