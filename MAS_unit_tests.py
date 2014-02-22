@@ -128,29 +128,8 @@ class TestSun(unittest.TestCase):
     # on a computer located in Sweden or in a country with equal
     # UTC offset and daylight saving times as Sweden.
 
-    TOLERANCE_SECONDS = 10 * 60 # Tolerance in seconds
-    
-    def _test_sunrise_sunset(self, lat, long, year, month, day, 
-                expected_sunrise_hour, expected_sunrise_minute, 
-                expected_sunset_hour, expected_sunset_minute):
-        dt = datetime.datetime(year, month, day, 12,12, tzinfo=Sun.LocalTimezone())
-        s = Sun.Sun(lat, long)
-        sunrise = s.sunrise(dt)
-        sunset = s.sunset(dt)
-        self._compare_time(sunrise, expected_sunrise_hour, 
-                            expected_sunrise_minute)
-        self._compare_time(sunset, expected_sunset_hour, 
-                            expected_sunset_minute)		
-    
-    def _compare_time(self, time1, hour, minute):
-        time2 = datetime.time(hour, minute)
-        date = datetime.date(2000, 1, 1) #Dummy
-        diff = abs(datetime.datetime.combine(date, time2) - 
-                    datetime.datetime.combine(date, time1))
-        if((diff.days != 0) or (diff.seconds > self.TOLERANCE_SECONDS)):
-            raise Exception("Got: "+str(time1)+" Expected: "+str(time2))
+    TOLERANCE_SECONDS = 6 * 60 # Tolerance in seconds
         
- 
     def test_stockholm_sunrise_sunset(self):
         lat  = 59.20
         long = 18.3
@@ -183,7 +162,26 @@ class TestSun(unittest.TestCase):
                 t[2], t[3], t[4], t[5], t[6])
             except Exception as e:
                 self.assertTrue(False, e.args[0] + " Test: " + str(t))
-                
+
+    def _test_sunrise_sunset(self, lat, long, year, month, day, 
+                expected_sunrise_hour, expected_sunrise_minute, 
+                expected_sunset_hour, expected_sunset_minute):
+        dt = datetime.datetime(year, month, day, 12,12, tzinfo=Sun.LocalTimezone())
+        s = Sun.Sun(lat, long)
+        sunrise = s.sunrise(dt)
+        sunset = s.sunset(dt)
+        self._compare_time(sunrise, expected_sunrise_hour, 
+                            expected_sunrise_minute)
+        self._compare_time(sunset, expected_sunset_hour, 
+                            expected_sunset_minute)		
+    
+    def _compare_time(self, time1, hour, minute):
+        time2 = datetime.time(hour, minute)
+        date = datetime.date(2000, 1, 1) #Dummy
+        diff = abs(datetime.datetime.combine(date, time2) - 
+                    datetime.datetime.combine(date, time1))
+        if((diff.days != 0) or (diff.seconds > self.TOLERANCE_SECONDS)):
+            raise Exception("Got: "+str(time1)+" Expected: "+str(time2))                
     
 if __name__ == '__main__':
     unittest.main()
