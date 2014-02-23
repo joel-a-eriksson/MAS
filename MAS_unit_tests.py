@@ -162,10 +162,10 @@ class TestSun(unittest.TestCase):
     def _test_sunrise_sunset(self, lat, long, year, month, day, 
                 expected_sunrise_hour, expected_sunrise_minute, 
                 expected_sunset_hour, expected_sunset_minute):
-        dt = datetime.datetime(year, month, day, 12,12, tzinfo=Sun.LocalTimezone())
-        s = Sun.Sun(lat, long)
-        sunrise = s.sunrise(dt)
-        sunset = s.sunset(dt)
+        date = datetime.date(year, month, day)
+        s = Sun.Sun(lat, long, Sun.LocalTimezone())
+        sunrise = s.sunrise(date)
+        sunset = s.sunset(date)
         status1=self._compare_time(sunrise, expected_sunrise_hour, 
                             expected_sunrise_minute)
         status2=self._compare_time(sunset, expected_sunset_hour, 

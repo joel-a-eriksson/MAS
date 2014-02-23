@@ -38,38 +38,38 @@ class Sun:
     Calculate sunrise and sunset based on equations from NOAA
     http://www.srrb.noaa.gov/highlights/sunrise/calcdetails.html
 
-    typical use, calculating the sunrise at the present day:
-    
-    import datetime
-    import sunrise
-    s = sun(lat=49,long=3)
-    print('sunrise at ',s.sunrise(when=datetime.datetime.now())
+    typical use, calculating the sunrise at the present day
     '''
-    # default Amsterdam
-    def __init__(self,lat=52.37,long=4.90):
+    
+    def __init__(self,lat,long,timezone=None):
+        '''   
+        If none is given for timezone a local time zone is assumed 
+        (including daylight saving if present)
+        '''
         self.lat=lat
         self.long=long
-
+        if timezone == None : self.timezone = LocalTimezone()
+        self.timezone = timezone
+        
     def sunrise(self,when=None):
         '''
         return the time of sunrise as a datetime.time object
-        when is a datetime.datetime object. If none is given
-        a local time zone is assumed (including daylight saving
-        if present)
+        when is a datetime.date object. If no date is given
+        current date is assumed.
         '''
-        if when is None : when = datetime.now(tz=LocalTimezone())
+        if when is None : when = date.today()
         self.__preptime(when)
         self.__calc()
         return self.__timefromdecimalday(self.sunrise_t)
       
     def sunset(self,when=None):
-        if when is None : when = datetime.now(tz=LocalTimezone())
+        if when is None : when = date.today()
         self.__preptime(when)
         self.__calc()
         return self.__timefromdecimalday(self.sunset_t)
       
     def solarnoon(self,when=None):
-        if when is None : when = datetime.now(tz=LocalTimezone())
+        if when is None : when = date.today()
         self.__preptime(when)
         self.__calc()
         return self.__timefromdecimalday(self.solarnoon_t)
@@ -91,21 +91,25 @@ class Sun:
     def __preptime(self,when):
         '''
         Extract information in a suitable format from when, 
-        a datetime.datetime object.
+        a datetime.date object.
         '''
+        # Create a datetime object from the date object. Set
+        # hour to 12 (noon).
+        t = time(hour=12, tzinfo=self.timezone)
+        dt = datetime.combine(when, t)
+        
         # datetime days are numbered in the Gregorian calendar
         # while the calculations from NOAA are distibuted as
         # OpenOffice spreadsheets with days numbered from
         # 1/1/1900. The difference are those numbers taken for 
         # 18/12/2010
-        self.day = when.toordinal()-(734124-40529)
-        t=when.time()
+        self.day = dt.toordinal()-(734124-40529)
         self.time= (t.hour + t.minute/60.0 + t.second/3600.0)/24.0
         
-        self.timezone=0
-        offset=when.utcoffset()
-        if not offset is None:
-            self.timezone=offset.seconds/3600.0+(offset.days*24)
+        self.offset=0
+        utc_offset=dt.utcoffset()
+        if not utc_offset is None:
+            self.offset=utc_offset.seconds/3600.0+(utc_offset.days*24)
         
     def __calc(self):
         '''
@@ -115,14 +119,14 @@ class Sun:
         The results are stored in the instance variables
         sunrise_t, sunset_t and solarnoon_t
         '''
-        timezone = self.timezone # in hours, east is positive
-        longitude= self.long     # in decimal degrees, east is positive
-        latitude = self.lat      # in decimal degrees, north is positive
+        offset = self.offset # in hours, east is positive
+        longitude= self.long # in decimal degrees, east is positive
+        latitude = self.lat  # in decimal degrees, north is positive
         
         time  = self.time # percentage past midnight, i.e. noon  is 0.5
-        day      = self.day     # daynumber 1=1/1/1900
+        day   = self.day  # daynumber 1=1/1/1900
         
-        Jday     =day+2415018.5+time-timezone/24 # Julian day
+        Jday     =day+2415018.5+time-offset/24 # Julian day
         Jcent    =(Jday-2451545)/36525    # Julian century
         
         Manom    = 357.52911+Jcent*(35999.05029-0.0001537*Jcent)
@@ -140,15 +144,15 @@ class Sun:
         
         hourangle= deg(acos(cos(rad(90.833))/(cos(rad(latitude))*cos(rad(declination)))-tan(rad(latitude))*tan(rad(declination))))
         
-        self.solarnoon_t=(720-4*longitude-eqtime+timezone*60)/1440
+        self.solarnoon_t=(720-4*longitude-eqtime+offset*60)/1440
         self.sunrise_t  =self.solarnoon_t-hourangle*4/1440
         self.sunset_t   =self.solarnoon_t+hourangle*4/1440
 
 if __name__ == "__main__":
     if (len(sys.argv)>1):
-        s=Sun(lat=float(sys.argv[1]),long=float(sys.argv[2]))
+        s=Sun(float(sys.argv[1]),float(sys.argv[2]), LocalTimezone())
     else:
-        s = Sun(lat=59.17,long=18.3) # Default Stockholm / Sweden
+        s = Sun(59.17,18.3, LocalTimezone()) # Default Stockholm / Sweden
         
-    print("Time now: " + str(datetime.now(tz=LocalTimezone())))
+    print("Time now: " + str(datetime.now()))
     print("Sunrise: "+str(s.sunrise())+"  Solarnoon: "+str(s.solarnoon())+"  Sunset: " +str(s.sunset()))
