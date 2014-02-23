@@ -155,13 +155,9 @@ class TestSun(unittest.TestCase):
             [2014,11,15,   7,42,   15,22],
             [2014,12,15,   8,38,   14,47]
         ]
-        #self._test_sunrise_sunset(59.17, 18.3, 2014,2,21,7,7,16,51)
         for t in test_set:
-            try:
-                self._test_sunrise_sunset(lat, long, t[0], t[1], 
+            self._test_sunrise_sunset(lat, long, t[0], t[1], 
                 t[2], t[3], t[4], t[5], t[6])
-            except Exception as e:
-                self.assertTrue(False, e.args[0] + " Test: " + str(t))
 
     def _test_sunrise_sunset(self, lat, long, year, month, day, 
                 expected_sunrise_hour, expected_sunrise_minute, 
@@ -170,10 +166,12 @@ class TestSun(unittest.TestCase):
         s = Sun.Sun(lat, long)
         sunrise = s.sunrise(dt)
         sunset = s.sunset(dt)
-        self._compare_time(sunrise, expected_sunrise_hour, 
+        status1=self._compare_time(sunrise, expected_sunrise_hour, 
                             expected_sunrise_minute)
-        self._compare_time(sunset, expected_sunset_hour, 
-                            expected_sunset_minute)		
+        status2=self._compare_time(sunset, expected_sunset_hour, 
+                            expected_sunset_minute)	
+        self.assertFalse((status1 != "Ok") or (status2 != "Ok"), str(year)+"-"+
+            str(month)+"-"+str(day)+" Sunrise: "+status1+" Sunset: "+status2)
     
     def _compare_time(self, time1, hour, minute):
         time2 = datetime.time(hour, minute)
@@ -181,7 +179,8 @@ class TestSun(unittest.TestCase):
         diff = abs(datetime.datetime.combine(date, time2) - 
                     datetime.datetime.combine(date, time1))
         if((diff.days != 0) or (diff.seconds > self.TOLERANCE_SECONDS)):
-            raise Exception("Got: "+str(time1)+" Expected: "+str(time2))                
+            return "Got: "+str(time1)+" Expected: "+str(time2)
+        return "Ok"
     
 if __name__ == '__main__':
     unittest.main()
