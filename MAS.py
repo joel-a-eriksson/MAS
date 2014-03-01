@@ -6,7 +6,9 @@ from ctypes import util
 from ctypes import *
 from threading import Timer
 from datetime import datetime
-import getopt, sys, time, threading, re
+import getopt, sys, time, threading, re, logging
+
+
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
@@ -98,7 +100,18 @@ class TelldusLibrary:
 ###############################################################################
 # LOAD CONFIGURATION FILE HANDLING
 ###############################################################################
-def parse_EVENT(line, control_library, groups):
+def parse_LAT_LONG(line):
+    words = line.split()
+    if(len(words) != 3):
+        raise Exception("LAT_LONG must have 2 arguments\n   " + 
+                        " | ".join(words))
+    
+    lat = float(words[1])
+    long = float(words[2])
+    
+    return [lat, long]
+        
+def parse_EVENT(line, control_library, groups, lat_long_is_set = True):
     hour   = 0
     minute = 0
     weekday =  None
@@ -107,13 +120,18 @@ def parse_EVENT(line, control_library, groups):
     
     words = line.split()
     if((len(words) < 3) or (len(words) > 5)):
-        raise Exception("EVENT must have 3 - 5 arguments\n   " + " | ".join(words))
+        raise Exception("EVENT must have 3 - 5 arguments\n   " + 
+                        " | ".join(words))
         
     # Parse <time>
     if(words[1] == "Sunrise"):
         hour = TimeEvent.TIME_SUNRISE
+        if(not lat_long_is_set):
+            raise Exception("Sunrise requires LAT_LONG to be set\n   " + line)
     elif(words[1] == "Sunset"):
         hour = TimeEvent.TIME_SUNSET
+        if(not lat_long_is_set):
+            raise Exception("Sunset requires LAT_LONG to be set\n   " + line)
     else:
         time = words[1].split(":")
         if(len(time) != 2):
@@ -143,8 +161,12 @@ def parse_EVENT(line, control_library, groups):
     if(len(words) == (word_index + 2)):
         if(words[word_index]=="Sunup"):
             restriction = TimeEvent.RESTRICTION_SUNUP
+            if(not lat_long_is_set):
+                raise Exception("Sunup requires LAT_LONG to be set\n   " + line)
         elif(words[word_index]=="Sundown"):
-            restriction = TimeEvent.RESTRICTION_SUNDOWN    
+            restriction = TimeEvent.RESTRICTION_SUNDOWN 
+            if(not lat_long_is_set):
+                raise Exception("Sundown requires LAT_LONG to be set\n   " + line)
         else:
             raise Exception("invalid restriction. Valid values are "+ 
             "'Sunup' or 'Sundown'\n   "    + line)
@@ -212,7 +234,7 @@ def parse_GROUP(line):
         
     return Group(groupid, name, devices)
     
-def load_config_file(filename, control_library, events, groups):
+def load_config_file(filename, control_library, events, groups, lat_long):
     line_nbr = 0
     try:
         fo = open(filename,"r")
@@ -225,8 +247,11 @@ def load_config_file(filename, control_library, events, groups):
                 first_word = word_list[0]
                 if (first_word.startswith("#")):
                     pass
+                elif (first_word == "LAT_LONG"):
+                    lat_long = parse_LAT_LONG(line)
                 elif (first_word == "EVENT"):
-                    event = parse_EVENT(line, control_library, groups)
+                    event = parse_EVENT(line, control_library, groups, 
+                                        lat_long != None)
                     events.append(event)
                 elif (first_word == "GROUP"):
                     group = parse_GROUP(line)
@@ -364,7 +389,9 @@ def main():
     events = []
     groups = Groups()
     control_library = None
+    lat_long = None
     config_file = "MAS.config"
+    log_file = "MAS.log"
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "?c:", ["?","config="])
@@ -379,6 +406,9 @@ def main():
         else:
             usage()
             exit(2)
+
+    logging.basicConfig(filename=log_file,level=logging.DEBUG,format="%(asctime)s - %(levelname)s - %(message)s")
+    logging.info('Mini Automation Sever Initiated')
             
     try:
         control_library = TelldusLibrary();
@@ -390,7 +420,7 @@ def main():
 
     try:
         load_config_file(config_file, control_library, 
-        events, groups)
+        events, groups, lat_long)
     except Exception as e:
         sys.stderr.write(e.args[0]+"\n")
         exit(3)

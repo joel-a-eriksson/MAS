@@ -13,7 +13,20 @@ class TestParsing(unittest.TestCase):
             "Please install before use.\n")
             exit(3)
         self.groups = MAS.Groups()
-
+        
+    def test_parse_LAT_LONG_pass(self):
+        lat_long = MAS.parse_LAT_LONG('LAT_LONG 59.17 18.3')
+        self.assertTrue(lat_long[0] == 59.17)
+        self.assertTrue(lat_long[1] == 18.3)         
+        
+    def test_parse_LAT_LONG_wrong_format(self):
+        with self.assertRaises(Exception):
+            MAS.parse_LAT_LONG('LAT_LONG 59.17 18.3 23')
+        with self.assertRaises(Exception):
+            MAS.parse_LAT_LONG('LAT_LONG 59.17')        
+        with self.assertRaises(Exception):
+            MAS.parse_LAT_LONG('LAT_LONG aa bb')  
+            
     def test_parse_GROUP_pass1(self):
         group = MAS.parse_GROUP('GROUP 12 "My name" 2 4 6')
         self.assertTrue(group.id == 12)
@@ -71,7 +84,7 @@ class TestParsing(unittest.TestCase):
     
     def test_parse_EVENT_on(self):
         event = MAS.parse_EVENT("EVENT 00:01 Mon/Tue on(43)", 
-        self.telldus_library, self.groups)
+        self.telldus_library, self.groups, False)
         self.assertTrue(event.hour == 0)
         self.assertTrue(event.minute == 1)
         self.assertTrue(event.weekday == 
@@ -122,7 +135,21 @@ class TestParsing(unittest.TestCase):
         with self.assertRaises(Exception):
             MAS.parse_EVENT("EVENT 01:23 Sundown on(G2)",  
         self.telldus_library, groups)
-
+        
+    def test_parse_EVENT_lat_long_not_set(self):
+        with self.assertRaises(Exception):
+            MAS.parse_EVENT("EVENT 01:23 Sundown on(1)",  
+                    self.telldus_library, groups, False)
+        with self.assertRaises(Exception):
+            MAS.parse_EVENT("EVENT 01:23 Sunup on(1)",  
+                    self.telldus_library, groups, False)
+        with self.assertRaises(Exception):
+            MAS.parse_EVENT("EVENT Sunrise on(1)",  
+                    self.telldus_library, groups, False)
+        with self.assertRaises(Exception):
+            MAS.parse_EVENT("EVENT Sunset on(1)",  
+                    self.telldus_library, groups, False)
+                    
 class TestSun(unittest.TestCase):
     # NOTE! These test cases will only pass if script is executed
     # on a computer located in Sweden or in a country with equal
