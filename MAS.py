@@ -6,7 +6,7 @@ from ctypes import util
 from ctypes import *
 from threading import Timer
 from datetime import datetime
-import getopt, sys, time, threading, re, logging
+import getopt, sys, time, threading, re, logging, Sun
 
 
 
@@ -231,8 +231,9 @@ def parse_GROUP(line):
         
     return Group(groupid, name, devices)
     
-def load_config_file(filename, control_library, events, groups, lat_long):
+def load_config_file(filename, control_library, events, groups):
     line_nbr = 0
+    lat_long = None
     try:
         fo = open(filename,"r")
     except Exception:
@@ -259,7 +260,7 @@ def load_config_file(filename, control_library, events, groups, lat_long):
                     raise Exception("unknown command '" + first_word + 
                     "'.\n   " + line)
         fo.close()
-        return True
+        return lat_long
     except Exception as e:
         raise Exception("Syntax error in '" + filename + "'\n" +
         "  Line " + str(line_nbr + 1) + ": " +e.args[0])
@@ -327,26 +328,35 @@ class FunctionDim(FunctionBase):
 class TimerThread(threading.Thread):
     event = None
     event_list = None
+    sun = None
     
-    def __init__(self, event_list):
+    def __init__(self, event_list, sun):
         threading.Thread.__init__(self)
         self.event = threading.Event()
         self.event_list = event_list
-
+        self.sun = sun
+        
     def run(self):
+        last_date = None
+        sunrise_time = None
+        sunset_time = None
         while not self.event.is_set():
-            time = datetime.now()
+            dt = datetime.now()
+            if ((last_date != dt.date()) and (self.sun != None)):
+                sunrise_time = self.sun.sunrise()
+                sunset_time = self.sun.sunset()
+                last_date = dt.date()
             for event in self.event_list:
-                if(event.time_match(time)):
+                if(event.time_match(dt, sunrise_time, sunset_time)):
                     event.execute()
-            self.event.wait( 60 - time.second + 2 )
+            self.event.wait(60 - dt.second + 2)
 
     def stop(self):
         self.event.set()
 
 class TimeEvent:
-    TIME_SUNSET  = -1
-    TIME_SUNRISE = -2
+    TIME_SUNRISE = -1
+    TIME_SUNSET  = -2
     hour    = 0
     minute  = 0
     weekday = [True, True, True, True, True, True, True]    
@@ -367,10 +377,31 @@ class TimeEvent:
     def __lt__(self, other):
         return (self.hour*60 + self.minute) < (other.hour*60 + other.minute)
         
-    def time_match(self, time):
-        return ((self.hour == time.hour) and (self.minute == time.minute) 
-        and self.weekday[time.weekday()])
-    
+    def time_match(self, dt, sunrise_time, sunset_time):
+        match = False
+        
+        # Check time
+        if(self.hour == self.TIME_SUNRISE):
+            match = ((dt.hour == sunrise_time.hour) and 
+                     (dt.minute == sunrise_time.minute)) 
+        elif(self.hour == self.TIME_SUNSET):
+            match = ((dt.hour == sunset_time.hour) and 
+                      (dt.minute == sunset_time.minute))
+        else:
+            match = ((self.hour == dt.hour) and (self.minute == dt.minute))
+        
+        # Check day of week
+        if(match):
+            match = self.weekday[dt.weekday()]
+            
+        # Check restriction
+        if(match and (restriction == self.RESTRICTION_SUNUP)):
+            match = ((dt.time() > sunrise_time) and (dt.time() < sunset_time)) 
+        elif(match and (restriction == self.RESTRICTION_SUNDOWN)):
+            match = ((dt.time() < sunrise_time) or (dt.time() > sunset_time))    
+            
+        return match
+        
     def execute(self):
         self.function.execute()
     
@@ -387,6 +418,7 @@ def main():
     groups = Groups()
     control_library = None
     lat_long = None
+    sun = None
     config_file = "MAS.config"
     log_file = "MAS.log"
     
@@ -416,13 +448,16 @@ def main():
         exit(3)
 
     try:
-        load_config_file(config_file, control_library, 
-        events, groups, lat_long)
+        lat_long = load_config_file(config_file, control_library, 
+        events, groups)
     except Exception as e:
         sys.stderr.write(e.args[0]+"\n")
         exit(3)
     
-    timer_thread = TimerThread(events)
+    if(lat_long != None):
+        sun = Sun.Sun(lat_long[0], lat_long[1], Sun.LocalTimezone())
+    
+    timer_thread = TimerThread(events, sun)
     timer_thread.start()
     
     print("Running Mini Automation Server")
