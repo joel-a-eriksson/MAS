@@ -74,8 +74,7 @@ class TelldusLibrary:
             self.TURNON):
                 self.library.tdTurnOn(device)
             else:
-                #@@@@ err log
-                print(str(device) + " cannot be turned on")
+                logging.warning(str(device) + " cannot be turned on")
     
     def turn_off(self,devices):
         for device in devices:
@@ -84,8 +83,7 @@ class TelldusLibrary:
                 self.library.tdTurnOff(device)
                 #time.sleep(1)
             else:
-                #@@@@ err log
-                print(str(device) + " cannot be turned off")                    
+                logging.warning(str(device) + " cannot be turned off")        
                 
     def dim(self,devices,dim_level):
         for device in devices:
@@ -94,8 +92,7 @@ class TelldusLibrary:
                 self.library.tdDim(device,dim_level)
                 #time.sleep(1)
             else:
-                #@@@@ err log
-                print(str(device) + " cannot be dimmed")                
+                logging.warning(str(device) + " cannot be dimmed")            
                 
 ###############################################################################
 # LOAD CONFIGURATION FILE HANDLING
@@ -438,6 +435,7 @@ def main():
         pass
         
     print("Shutting down...")
+    #@@@@ check for error log and notify user if such exist
     timer_thread.stop()
     exit()
     

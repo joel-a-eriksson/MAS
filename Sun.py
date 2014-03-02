@@ -73,6 +73,18 @@ class Sun:
         self.__preptime(when)
         self.__calc()
         return self.__timefromdecimalday(self.solarnoon_t)
+
+    def sunup(self,when=None):
+        '''
+        return True if sun is up (beween sunrise and sunset).
+        when is a datetime.datetime object. If no datetime is 
+        given current date and time is assumed.
+        '''
+        if when is None : when = datetime.now()
+        t = when.time()        
+        t_sunrise = self.sunrise(when.date())
+        t_sunset = self.sunset(when.date())
+        return ((t > t_sunrise) and (t < t_sunset))
         
     def __timefromdecimalday(self, day):
         '''

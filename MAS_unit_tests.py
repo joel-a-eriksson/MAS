@@ -185,7 +185,22 @@ class TestSun(unittest.TestCase):
         for t in test_set:
             self._test_sunrise_sunset(lat, long, t[0], t[1], 
                 t[2], t[3], t[4], t[5], t[6])
-
+    
+    def test_sunup(self):
+        # Values taken from test_stockholm_sunrise_sunset
+        lat  = 59.20
+        long = 18.3
+        t = [2014, 3,29,   5,21,   18,23]
+        s = Sun.Sun(lat, long, Sun.LocalTimezone())
+        self.assertFalse(s.sunup(datetime.datetime(
+            t[0],t[1],t[2],t[3],t[4]-10)))
+        self.assertTrue(s.sunup(datetime.datetime(
+            t[0],t[1],t[2],t[3],t[4]+10)))   
+        self.assertTrue(s.sunup(datetime.datetime(
+            t[0],t[1],t[2],t[5],t[6]-10)))
+        self.assertFalse(s.sunup(datetime.datetime(
+            t[0],t[1],t[2],t[5],t[6]+10)))             
+        
     def _test_sunrise_sunset(self, lat, long, year, month, day, 
                 expected_sunrise_hour, expected_sunrise_minute, 
                 expected_sunset_hour, expected_sunset_minute):
