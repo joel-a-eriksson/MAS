@@ -18,15 +18,10 @@ class DebugLibrary:
         pass
 
     def log(self, function, devices):
-        time = datetime.now()
-        print("")
-        print(time)
-        print(function)
-        print(devices)
-        print("")
+        logging.info(function + " device(s): " + str(devices)) 
 
     def turn_on(self,devices):
-        self.log("Turn on", devices)            
+        self.log("Turn on", devices)                
 
     def turn_off(self,devices):
         self.log("Turn off", devices)            
@@ -395,9 +390,9 @@ class TimeEvent:
             match = self.weekday[dt.weekday()]
             
         # Check restriction
-        if(match and (restriction == self.RESTRICTION_SUNUP)):
+        if(match and (self.restriction == self.RESTRICTION_SUNUP)):
             match = ((dt.time() > sunrise_time) and (dt.time() < sunset_time)) 
-        elif(match and (restriction == self.RESTRICTION_SUNDOWN)):
+        elif(match and (self.restriction == self.RESTRICTION_SUNDOWN)):
             match = ((dt.time() < sunrise_time) or (dt.time() > sunset_time))    
             
         return match
@@ -440,8 +435,8 @@ def main():
     logging.info('Mini Automation Sever Initiated')
             
     try:
-        control_library = TelldusLibrary();
-        #@@@@ control_library = DebugLibrary();
+        #control_library = TelldusLibrary();
+        control_library = DebugLibrary();
     except:
         sys.stderr.write("Telldus core library is missing. " + 
         "Please install before use.\n")

@@ -149,7 +149,142 @@ class TestParsing(unittest.TestCase):
         with self.assertRaises(Exception):
             MAS.parse_EVENT("EVENT Sunset on(1)",  
                     self.telldus_library, groups, False)
-                    
+
+class TestEvent(unittest.TestCase):
+    telldus_library = None
+    groups = None
+    
+    def SetUp(self):
+        try:
+            self.telldus_library = MAS.TelldusLibrary();
+        except:
+            sys.stderr.write("Telldus core library is missing. " + 
+            "Please install before use.\n")
+            exit(3)
+        self.groups = MAS.Groups()
+        
+    def test_time_trig(self):
+        event = MAS.parse_EVENT("EVENT 13:00 on(1)", 
+        self.telldus_library, self.groups, False) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,10,00),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,12,59),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,13,00),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,13,1),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,18,00),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,23,59),
+                        t_sunrise,t_sunset))
+
+    def test_sunrise_trig(self):
+        event = MAS.parse_EVENT("EVENT Sunrise on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,7,12),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,9,59),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,10,00),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,10,1),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,23,59),
+                        t_sunrise,t_sunset))
+  
+    def test_sunset_trig(self):
+        event = MAS.parse_EVENT("EVENT Sunset on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,7,12),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,17,59),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,18,00),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,18,1),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,23,59),
+                        t_sunrise,t_sunset))
+  
+    def test_weekday1(self):
+        event = MAS.parse_EVENT("EVENT 10:00 Tue/Sat on(1)", 
+        self.telldus_library, self.groups, False) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        # 2014-03-03 is a Monday
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,10,0),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,4,10,0),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,5,10,0),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,6,10,0),
+                        t_sunrise,t_sunset)) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,7,10,0),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,8,10,0),
+                        t_sunrise,t_sunset)) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,9,10,0),
+                        t_sunrise,t_sunset))                        
+ 
+    def test_weekday2(self):
+        event = MAS.parse_EVENT("EVENT 10:00 Mon/Sun on(1)", 
+        self.telldus_library, self.groups, False) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        # 2014-03-03 is a Monday
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,10,0),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,4,10,0),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,5,10,0),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,6,10,0),
+                        t_sunrise,t_sunset)) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,7,10,0),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,8,10,0),
+                        t_sunrise,t_sunset)) 
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,9,10,0),
+                        t_sunrise,t_sunset))   
+
+    def test_restriction_sunup(self):
+        event = MAS.parse_EVENT("EVENT 13:00 Sunup on(1)", 
+        self.telldus_library, self.groups, True) 
+        t = datetime.datetime(2014,3,3,13,0)
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        self.assertFalse(event.time_match(t,datetime.time(10),
+                                            datetime.time(12,59)))
+        self.assertTrue(event.time_match(t, datetime.time(10),
+                                            datetime.time(13,1)))
+        self.assertTrue(event.time_match(t, datetime.time(12,59),
+                                            datetime.time(18,0)))  
+        self.assertFalse(event.time_match(t, datetime.time(13,1),
+                                            datetime.time(18,0))) 
+
+    def test_restriction_sundown(self):
+        event = MAS.parse_EVENT("EVENT 13:00 Sundown on(1)", 
+        self.telldus_library, self.groups, True) 
+        t = datetime.datetime(2014,3,3,13,0)
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        self.assertTrue(event.time_match(t,datetime.time(10),
+                                            datetime.time(12,59)))
+        self.assertFalse(event.time_match(t, datetime.time(10),
+                                            datetime.time(13,1)))
+        self.assertFalse(event.time_match(t, datetime.time(12,59),
+                                            datetime.time(18,0)))  
+        self.assertTrue(event.time_match(t, datetime.time(13,1),
+                                            datetime.time(18,0)))                                             
+                        
 class TestSun(unittest.TestCase):
     # NOTE! These test cases will only pass if script is executed
     # on a computer located in Sweden or in a country with equal
@@ -223,6 +358,8 @@ class TestSun(unittest.TestCase):
         if((diff.days != 0) or (diff.seconds > self.TOLERANCE_SECONDS)):
             return "Got: "+str(time1)+" Expected: "+str(time2)
         return "Ok"
-    
+ 
+
+ 
 if __name__ == '__main__':
     unittest.main()
