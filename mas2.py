@@ -6,7 +6,7 @@ from ctypes import util
 from ctypes import *
 from threading import Timer
 from datetime import datetime
-import getopt, sys, time, threading, re, logging, Sun
+import getopt, sys, time, threading, re, logging, sunstate
 
 
 
@@ -415,8 +415,8 @@ def main():
     control_library = None
     lat_long = None
     sun = None
-    config_file = "MAS.config"
-    log_file = "MAS.log"
+    config_file = "mas.config"
+    log_file = "mas.log"
     debug_mode = False
     
     try:
@@ -457,7 +457,7 @@ def main():
         exit(3)
     
     if(lat_long != None):
-        sun = Sun.Sun(lat_long[0], lat_long[1], Sun.LocalTimezone())
+        sun = sunstate.Sun(lat_long[0], lat_long[1], sunstate.LocalTimezone())
     
     timer_thread = TimerThread(events, sun)
     timer_thread.start()
@@ -472,7 +472,7 @@ def main():
         pass
         
     print("Shutting down...")
-    #@@@@ check for error log and notify user if such exist
+
     timer_thread.stop()
     exit()
     
