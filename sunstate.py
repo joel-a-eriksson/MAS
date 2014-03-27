@@ -1,3 +1,13 @@
+###############################################################################
+#   - Sun State module -
+#
+#   Based on example source code provided by Michael Landers on following page:
+#   http://michelanders.blogspot.se/2010/12/calulating-sunrise-and-sunset-in-python.html
+#
+#   Modifications and corrections: Joel Eriksson (joel.a.eriksson@gmail.com)
+#
+###############################################################################
+
 from math import cos,sin,acos,asin,tan
 from math import degrees as deg, radians as rad
 from datetime import date,datetime,time, tzinfo, timedelta

@@ -1,5 +1,17 @@
 ###############################################################################
-# MINI AUTOMATION SERVER (MAS) V0.1
+#   - Mini Automation Server (MAS) -
+#
+#   Author: Joel Eriksson (joel.a.eriksson@gmail.com)
+#
+#   This program is free software: you can redistribute it and/or modify
+#   it under the terms of the GNU General Public License as published by
+#   the Free Software Foundation, either version 3 of the License, or
+#   (at your option) any later version.
+#
+#   This program is distributed in the hope that it will be useful,
+#   but WITHOUT ANY WARRANTY; without even the implied warranty of
+#   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#   GNU General Public License for more details.
 ###############################################################################
 
 from ctypes import util
@@ -8,7 +20,7 @@ from threading import Timer
 from datetime import datetime
 import getopt, sys, time, threading, re, logging, sunstate
 
-
+__version__ = "1.0.0"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
@@ -435,9 +447,10 @@ def main():
             usage()
             exit(2)
 
-    logging.basicConfig(filename=log_file,level=logging.DEBUG,format="%(asctime)s - %(levelname)s - %(message)s")
+    logging.basicConfig(filename=log_file,level=logging.DEBUG,
+        format="%(asctime)s - %(levelname)s - %(message)s")
     if(debug_mode):
-        logging.info('Mini Automation Sever Initiated')
+        logging.info('Mini Automation Sever ' + __version__ + ' Initiated')
             
     try:
         if(not debug_mode):
@@ -462,7 +475,7 @@ def main():
     timer_thread = TimerThread(events, sun)
     timer_thread.start()
     
-    print("Running Mini Automation Server")
+    print("Running Mini Automation Server "+__version__)
     print("Use Ctrl-C to quit.")
     
     try:
