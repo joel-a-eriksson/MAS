@@ -30,7 +30,7 @@ class DebugLibrary:
         self.log("Dim to level: "+str(dim_level), devices)
 
 ###############################################################################
-# TELLSTICK LIBRARY
+# TELLDUS TELLSTICK LIBRARY
 ###############################################################################
 class TelldusLibrary:
     TURNON  = 1
@@ -406,6 +406,7 @@ class TimeEvent:
 def usage():
     print("Usage: "+sys.argv[0]+" [option] ...\n")
     print("  -c file : specify configuration file")
+    print("  -d      : debug mode (commands writted to log file only)")
     print("  -?      : this help")
             
 def main():
@@ -416,27 +417,33 @@ def main():
     sun = None
     config_file = "MAS.config"
     log_file = "MAS.log"
+    debug_mode = False
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "?c:", ["?","config="])
+        opts, args = getopt.getopt(sys.argv[1:], "?c:d")
     except getopt.GetoptError as e:
         print(str(e)+"\n")
         usage()
         exit(2)
         
     for o, a in opts:
-        if o in ("-c", "--config"):
-            config_file = a    
+        if o == "-c":
+            config_file = a 
+        elif o == "-d":
+            debug_mode = True
         else:
             usage()
             exit(2)
 
     logging.basicConfig(filename=log_file,level=logging.DEBUG,format="%(asctime)s - %(levelname)s - %(message)s")
-    logging.info('Mini Automation Sever Initiated')
+    if(debug_mode):
+        logging.info('Mini Automation Sever Initiated')
             
     try:
-        #control_library = TelldusLibrary();
-        control_library = DebugLibrary();
+        if(not debug_mode):
+            control_library = TelldusLibrary();
+        else:
+            control_library = DebugLibrary();
     except:
         sys.stderr.write("Telldus core library is missing. " + 
         "Please install before use.\n")
