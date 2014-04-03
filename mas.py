@@ -419,7 +419,8 @@ class TimeEvent:
 ###############################################################################
 def usage():
     print("Usage: "+sys.argv[0]+" [option] ...\n")
-    print("  -c file : specify configuration file")
+    print("  -c file : specify configuration file (default 'mas.config')")
+    print("  -l file : specify log file (default 'mas.log')")
     print("  -d      : debug mode (commands writted to log file only)")
     print("  -?      : this help")
             
@@ -434,7 +435,7 @@ def main():
     debug_mode = False
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "?c:d")
+        opts, args = getopt.getopt(sys.argv[1:], "?c:l:d")
     except getopt.GetoptError as e:
         print(str(e)+"\n")
         usage()
@@ -442,7 +443,9 @@ def main():
         
     for o, a in opts:
         if o == "-c":
-            config_file = a 
+            config_file = a.strip()
+        elif o == "-l":
+            log_file = a.strip()
         elif o == "-d":
             debug_mode = True
         else:
