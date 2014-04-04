@@ -1,6 +1,8 @@
 ###############################################################################
 #   - Sun State module -
 #
+#   Required by the Mini Automation Server (MAS)
+#
 #   Based on example source code provided by Michael Landers on following page:
 #   http://michelanders.blogspot.se/2010/12/calulating-sunrise-and-sunset-in-python.html
 #
