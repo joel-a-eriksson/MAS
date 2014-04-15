@@ -136,7 +136,63 @@ class TestParsing(unittest.TestCase):
         mas.FunctionDim))
         self.assertTrue(event.function.devices == [5])
         self.assertTrue(event.function.dim_level == 50)
+
+    def test_parse_EVENT_sunrise(self):
+        event = mas.parse_EVENT("EVENT Sunrise off(4)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNRISE)
+        self.assertTrue(event.minute == 0)
+        self.assertTrue(event.weekday == 
+        [True,True,True,True,True,True,True])
+        self.assertTrue(event.restriction == 
+        mas.TimeEvent.RESTRICTION_NONE)
+        self.assertTrue(isinstance(event.function,
+        mas.FunctionOff))
+        self.assertTrue(event.function.devices == [4])
+
+    def test_parse_EVENT_sunset(self):
+        event = mas.parse_EVENT("EVENT Sunset on(7)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNSET)
+        self.assertTrue(event.minute == 0)
+        self.assertTrue(event.weekday == 
+        [True,True,True,True,True,True,True])
+        self.assertTrue(event.restriction == 
+        mas.TimeEvent.RESTRICTION_NONE)
+        self.assertTrue(isinstance(event.function,
+        mas.FunctionOn))
+        self.assertTrue(event.function.devices == [7])
+
+    def test_parse_EVENT_sunrise_offset_1(self):
+        event = mas.parse_EVENT("EVENT Sunrise+1 off(4)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNRISE)
+        self.assertTrue(event.minute == 60)       
+  
+    def test_parse_EVENT_sunrise_offset_2p5(self):
+        event = mas.parse_EVENT("EVENT Sunrise+2.5 off(4)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNRISE)
+        self.assertTrue(event.minute == 150)       
+
+    def test_parse_EVENT_sunrise_offset_minus0p5(self):
+        event = mas.parse_EVENT("EVENT Sunrise-0.5 off(4)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNRISE)
+        self.assertTrue(event.minute == -30)        
         
+    def test_parse_EVENT_sunset_offset_plus3p2(self):
+        event = mas.parse_EVENT("EVENT Sunset+3.2 off(4)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNSET)
+        self.assertTrue(event.minute == 192)        
+  
+    def test_parse_EVENT_sunset_offset_plus4p1(self):
+        event = mas.parse_EVENT("EVENT Sunset+4.1 off(4)",  
+        self.telldus_library, self.groups)
+        self.assertTrue(event.hour == mas.TimeEvent.TIME_SUNSET)
+        self.assertTrue(event.minute == 246)    
+  
     def test_parse_EVENT_group_pass(self):
         groups = mas.Groups()
         groups.add(mas.parse_GROUP('GROUP 3 "My name" 2 4 6'))
@@ -236,6 +292,52 @@ class TestEvent(unittest.TestCase):
         self.assertFalse(event.time_match(datetime.datetime(2014,3,3,23,59),
                         t_sunrise,t_sunset))
   
+    def test_sunrise_offset_trig_plus(self):
+        event = mas.parse_EVENT("EVENT Sunrise+3.5 on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(10,1) 
+        t_sunset = datetime.time(18) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,10,00),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,13,31),
+                        t_sunrise,t_sunset))
+
+    def test_sunrise_offset_trig_minus(self):
+        event = mas.parse_EVENT("EVENT Sunrise-3.5 on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(4) 
+        t_sunset = datetime.time(18) 
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,00,30),
+                        t_sunrise,t_sunset))                      
+   
+    def test_sunset_offset_trig_plus(self):
+        event = mas.parse_EVENT("EVENT Sunset+4.1 on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18,4) 
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,22,10),
+                        t_sunrise,t_sunset))
+   
+    def test_sunset_offset_trig_minus(self):
+        event = mas.parse_EVENT("EVENT Sunset-0.2 on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(10) 
+        t_sunset = datetime.time(18) 
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,3,17,48),
+                        t_sunrise,t_sunset))
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,18,00),
+                        t_sunrise,t_sunset))
+
+    def test_sunset_offset_trig_over_day(self):
+        event = mas.parse_EVENT("EVENT Sunset+3 on(1)", 
+        self.telldus_library, self.groups, True) 
+        t_sunrise = datetime.time(1) 
+        t_sunset = datetime.time(22) 
+        self.assertFalse(event.time_match(datetime.datetime(2014,3,3,22,00),
+                        t_sunrise,t_sunset))
+        self.assertTrue(event.time_match(datetime.datetime(2014,3,4,1,00),
+                        t_sunrise,t_sunset))
+                        
     def test_weekday1(self):
         event = mas.parse_EVENT("EVENT 10:00 Tue/Sat on(1)", 
         self.telldus_library, self.groups, False) 

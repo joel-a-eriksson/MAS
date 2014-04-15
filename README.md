@@ -52,11 +52,21 @@ The devices are identified by the unique ID assigned in step 2 of "Basic Install
 
     EVENT Sunset on(5)
     EVENT Sunrise off(5)
-    
-**Example 5:** Turn on device 6 at 07:00 but only if the sun is down. Turn it off at sunrise.
 
-    EVENT 07:00 Sundown on(6)
-    EVENT Sunrise off(6)
+**Example 5:** Turn on device 6 at one hour after sunset and turn it off 30 minutes before sunrise
+
+    EVENT Sunset+1 on(6)
+    EVENT Sunrise-0.5 off(6)
+    
+**Example 6:** Turn on device 7 at 07:00 but only if the sun is down. Turn it off at sunrise.
+
+    EVENT 07:00 Sundown on(7)
+    EVENT Sunrise off(7)
+
+**Example 7:** Turn on devices 1, 3 and 5 as a group at 07:00
+
+    GROUP G1 "Outside_lamps" 1 3 5
+    EVENT 07:00 on(G1)
     
 Using the Sunset, Sunrise, Sunup or Sundown requires latitude and longitude to be set (LAT_LONG command)
     
@@ -96,3 +106,12 @@ If the configuration file is updated, restart the application by rebooting the s
     
 ### Author and license
 This application is written by Joel Eriksson and is licensed under the GNU Public License.
+
+### Version history
+**1.1.0** (Mars 16, 2014)
+
+* Added support for time offset on Sunset and Sunrise 
+
+**1.0.0** (Mars 7, 2014)
+
+* First release

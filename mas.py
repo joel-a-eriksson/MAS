@@ -22,10 +22,10 @@
 from ctypes import util
 from ctypes import *
 from threading import Timer
-from datetime import datetime
+from datetime import datetime, timedelta
 import getopt, sys, time, threading, re, logging, sunstate
 
-__version__ = "1.0.0"
+__version__ = "1.1.0"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
@@ -119,7 +119,20 @@ def parse_LAT_LONG(line):
     long = float(words[2])
     
     return [lat, long]
-        
+
+def parse_EVENT_offset(s):
+    result = 0
+    offset = s.split('+')
+    if(len(offset)>1):
+        result = int(round(float(offset[1])*60,0))
+    else:
+        offset = s.split('-')
+        if(len(offset)>1):
+            result = int(round(float(offset[1])*-60,0))
+    if((result <= -(24*60)) or (result >= (24*60))):
+        raise Exception("Offset must be > -24 and < 24\n   " + s)
+    return result
+    
 def parse_EVENT(line, control_library, groups, lat_long_is_set = True):
     hour   = 0
     minute = 0
@@ -133,14 +146,16 @@ def parse_EVENT(line, control_library, groups, lat_long_is_set = True):
                         " | ".join(words))
         
     # Parse <time>
-    if(words[1] == "Sunrise"):
-        hour = TimeEvent.TIME_SUNRISE
+    if(words[1].startswith("Sunrise")):
         if(not lat_long_is_set):
             raise Exception("Sunrise requires LAT_LONG to be set\n   " + line)
-    elif(words[1] == "Sunset"):
-        hour = TimeEvent.TIME_SUNSET
+        hour = TimeEvent.TIME_SUNRISE
+        minute = parse_EVENT_offset(words[1])
+    elif(words[1].startswith("Sunset")):
         if(not lat_long_is_set):
             raise Exception("Sunset requires LAT_LONG to be set\n   " + line)
+        hour = TimeEvent.TIME_SUNSET
+        minute = parse_EVENT_offset(words[1])
     else:
         time = words[1].split(":")
         if(len(time) != 2):
@@ -169,13 +184,13 @@ def parse_EVENT(line, control_library, groups, lat_long_is_set = True):
     # Parse <restriction>
     if(len(words) == (word_index + 2)):
         if(words[word_index]=="Sunup"):
-            restriction = TimeEvent.RESTRICTION_SUNUP
             if(not lat_long_is_set):
                 raise Exception("Sunup requires LAT_LONG to be set\n   " + line)
+            restriction = TimeEvent.RESTRICTION_SUNUP
         elif(words[word_index]=="Sundown"):
-            restriction = TimeEvent.RESTRICTION_SUNDOWN 
             if(not lat_long_is_set):
                 raise Exception("Sundown requires LAT_LONG to be set\n   " + line)
+            restriction = TimeEvent.RESTRICTION_SUNDOWN 
         else:
             raise Exception("invalid restriction. Valid values are "+ 
             "'Sunup' or 'Sundown'\n   "    + line)
@@ -369,8 +384,8 @@ class TimerThread(threading.Thread):
 class TimeEvent:
     TIME_SUNRISE = -1
     TIME_SUNSET  = -2
-    hour    = 0
-    minute  = 0
+    hour    = 0 # Might be TIME_SUNRISE or TIME_SUNSET
+    minute  = 0 # Total offset in minutes if TIME_SUNSET or TIME_SUNRISE
     weekday = [True, True, True, True, True, True, True]    
     RESTRICTION_NONE    = 0
     RESTRICTION_SUNDOWN = 1
@@ -386,19 +401,21 @@ class TimeEvent:
         self.restriction = restriction
         self.function = function
             
-    def __lt__(self, other):
-        return (self.hour*60 + self.minute) < (other.hour*60 + other.minute)
+    def time_match_with_offset(self, dt, hour, minute):
+        dt_trig = (datetime(dt.year,dt.month,dt.day,hour,minute) + 
+                 timedelta(minutes = self.minute)) 
+        return ((dt.hour == dt_trig.hour) and (dt.minute == dt_trig.minute))
         
     def time_match(self, dt, sunrise_time, sunset_time):
         match = False
         
         # Check time
         if(self.hour == self.TIME_SUNRISE):
-            match = ((dt.hour == sunrise_time.hour) and 
-                     (dt.minute == sunrise_time.minute)) 
+            match = self.time_match_with_offset(dt, sunrise_time.hour, 
+                                                sunrise_time.minute) 
         elif(self.hour == self.TIME_SUNSET):
-            match = ((dt.hour == sunset_time.hour) and 
-                      (dt.minute == sunset_time.minute))
+            match = self.time_match_with_offset(dt, sunset_time.hour, 
+                                                sunset_time.minute)
         else:
             match = ((self.hour == dt.hour) and (self.minute == dt.minute))
         
@@ -457,8 +474,7 @@ def main():
 
     logging.basicConfig(filename=log_file,level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s")
-    if(debug_mode):
-        logging.info('Mini Automation Sever ' + __version__ + ' Initiated')
+    logging.info('Mini Automation Sever ' + __version__ + ' Initiated')
             
     try:
         if(not debug_mode):
@@ -466,14 +482,16 @@ def main():
         else:
             control_library = DebugLibrary();
     except:
-        sys.stderr.write("Telldus core library is missing. " + 
-        "Please install before use.\n")
+        errmsg = "Telldus core library is missing. Please install before use."
+        logging.error(errmsg)    
+        sys.stderr.write(errmsg+"\n")
         exit(3)
 
     try:
         lat_long = load_config_file(config_file, control_library, 
         events, groups)
     except Exception as e:
+        logging.error(e.args[0])
         sys.stderr.write(e.args[0]+"\n")
         exit(3)
     
@@ -493,6 +511,7 @@ def main():
         pass
         
     print("Shutting down...")
+    logging.info('Mini Automation Sever Exit')
 
     timer_thread.stop()
     exit()
