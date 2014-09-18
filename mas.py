@@ -23,9 +23,9 @@ from ctypes import util
 from ctypes import *
 from threading import Timer
 from datetime import datetime, timedelta
-import getopt, sys, time, threading, re, logging, sunstate
+import getopt, sys, time, threading, re, logging, sunstate, bottle, json
 
-__version__ = "1.1.0"
+__version__ = "1.2.x_beta"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
@@ -50,6 +50,8 @@ class DebugLibrary:
 # TELLDUS TELLSTICK LIBRARY
 ###############################################################################
 class TelldusLibrary:
+    DIM_LEVEL_MIN = 0
+    DIM_LEVEL_MAX = 255
     TURNON  = 1
     TURNOFF = 2
     BELL    = 4
@@ -80,31 +82,60 @@ class TelldusLibrary:
         self.library.tdGetErrorString.restype = c_char_p
         self.library.tdLastSentValue.restype = c_char_p
 
+    def get_device_IDs(self):
+        devices = []
+        number_devices = self.library.tdGetNumberOfDevices()
+        for i in range(number_devices):
+            devices.append(int(self.library.tdGetDeviceId(i)))
+        return devices
+        
+    def supports_on_off(self, device_id):
+        if((self.library.tdMethods(device_id,self.TURNON)  & self.TURNON) and
+           (self.library.tdMethods(device_id,self.TURNOFF) & self.TURNOFF)):
+            return True
+        else:
+            return False
+
+    def supports_dim(self, device_id):
+        if(self.library.tdMethods(device_id,self.DIM) & self.DIM):
+            return True
+        else:
+            return False
+            
+    def get_name(self, device_id):
+        return self.library.tdGetName(device_id)
+       
     def turn_on(self,devices):
+        ''' Turn on one or more devices. Will try on all IDs. 
+               devices -- List of device IDs to turn on       '''
         for device in devices:
-            if(self.library.tdMethods(device,self.TURNON) & 
-            self.TURNON):
+            if(self.supports_on_off(device)):
                 self.library.tdTurnOn(device)
             else:
                 logging.warning(str(device) + " cannot be turned on")
     
     def turn_off(self,devices):
+        ''' Turn off one or more devices. Will try on all IDs. 
+               devices -- List of device IDs to turn off       '''
         for device in devices:
-            if(self.library.tdMethods(device,self.TURNOFF) & 
-            self.TURNOFF):
+            if(self.supports_on_off(device)):
                 self.library.tdTurnOff(device)
-                #time.sleep(1)
             else:
-                logging.warning(str(device) + " cannot be turned off")        
+                logging.warning(str(device) + " cannot be turned off")     
                 
     def dim(self,devices,dim_level):
-        for device in devices:
-            if(self.library.tdMethods(device,self.DIM) & 
-            self.DIM):
-                self.library.tdDim(device,dim_level)
-                #time.sleep(1)
-            else:
-                logging.warning(str(device) + " cannot be dimmed")            
+        ''' Dim one or more devices. Will try on all IDs. 
+               devices   -- List of device IDs to dim        
+               dim_level -- Integer between 0-255          '''
+        if((dim_level < self.DIM_LEVEL_MIN) or 
+           (dim_level > self.DIM_LEVEL_MAX)):
+            logging.warning("Dim level: '" + str(dim_level) + "' not valid")
+        else:
+            for device in devices:
+                if(self.supports_dim(device)):
+                    self.library.tdDim(device,dim_level)
+                else:
+                    logging.warning(str(device) + " cannot be dimmed")   
                 
 ###############################################################################
 # LOAD CONFIGURATION FILE HANDLING
@@ -433,16 +464,118 @@ class TimeEvent:
         
     def execute(self):
         self.function.execute()
+
+###############################################################################
+# WEB API
+###############################################################################
+class WebAPI:
+    host = ""
+    port = ""
+    control = None
+    groups = None
+    app = None
+    
+    def __init__(self, host, port, control, groups):
+        self.host = host
+        self.port = port
+        self.control = control
+        self.groups = groups
+        self.app = bottle.Bottle()
+        self._route()
+
+    def _route(self):
+        self.app.route('/', method="GET", 
+                       callback=self._index)
+        self.app.route('/devices', method="GET", 
+                       callback=self._get_devices)
+        self.app.route('/device/<id:int>', method="GET", 
+                       callback=self._get_device)
+        self.app.route('/device/<id:int>/on', method="GET", 
+                       callback=self._turn_on_device)
+        self.app.route('/device/<id:int>/off', method="GET", 
+                       callback=self._turn_off_device)
+        self.app.route('/device/<id:int>/dim/<level:int>', method="GET", 
+                       callback=self._dim_device)
+                       
+    def start(self):
+        self.app.run(host=self.host, port=self.port)
+
+    def _return_succes(self):
+        bottle.response.content_type = 'application/json'
+        return {'result' : 'success' }
+        
+    def _index(self):
+        return 'Welcome'
+        
+    def _get_device(self, id):
+        if id in self.control.get_device_IDs():        
+            device = {
+                'id'              : id,
+                'name'            : self.control.get_name(id),
+                'supports_on_off' : self.control.supports_on_off(id),
+                'supports_dim'    : self.control.supports_dim(id)
+            }
+            if(self.control.supports_dim(id)):
+                device.update({
+                    'dim_level_min'   : self.control.DIM_LEVEL_MIN,
+                    'dim_level_max'   : self.control.DIM_LEVEL_MAX
+                })
+            bottle.response.content_type = 'application/json'
+            return device
+        else:
+            bottle.abort(400, "Device with ID '" + str(id) + "' not found")
+        
+    def _get_devices(self):
+        result = []
+        for id in self.control.get_device_IDs():
+            result.append(self._get_device(id))
+        return json.dumps(result)
+
+    def _turn_on_device(self, id):
+        if id not in self.control.get_device_IDs():    
+            bottle.abort(400, "Device with ID '" + str(id) + "' not found") 
+        elif (self.control.supports_on_off(id) == False):
+            bottle.abort(400, "Device ID '" + str(id) + "' don't support on")        
+        else:
+            self.control.turn_on([id])
+            return self._return_succes()
+
+    def _turn_off_device(self, id):
+        if id not in self.control.get_device_IDs():    
+            bottle.abort(400, "Device with ID '" + str(id) + "' not found") 
+        elif (self.control.supports_on_off(id) == False):
+            bottle.abort(400, "Device ID '" + str(id) + "' don't support off")        
+        else:
+            self.control.turn_off([id])
+            return self._return_succes()
+            
+    def _dim_device(self, id, level):
+        if id not in self.control.get_device_IDs():    
+            bottle.abort(400, "Device with ID '" + str(id) + "' not found") 
+        elif (self.control.supports_dim(id) == False):
+            bottle.abort(400, "Device ID '" + str(id) + "' don't support dim")
+        elif ((level < self.control.DIM_LEVEL_MIN) or 
+              (level > self.control.DIM_LEVEL_MAX)):
+            bottle.abort(400, "Dim level '" + str(level) + "' invalid")            
+        else:
+            self.control.dim([id],level)
+            return self._return_succes()            
+            
+#@route('/hello/<name>')
+#def index(name):
+#   return template('<b>Hello {{name}}</b>!', name=name)
     
 ###############################################################################
 # MAIN PROGRAM
 ###############################################################################
 def usage():
     print("Usage: "+sys.argv[0]+" [option] ...\n")
-    print("  -c file : specify configuration file (default 'mas.config')")
-    print("  -l file : specify log file (default 'mas.log')")
-    print("  -d      : debug mode (commands writted to log file only)")
-    print("  -?      : this help")
+    print("  -c file   : specify configuration file (default 'mas.config')")
+    print("  -l file   : specify log file (default 'mas.log')")
+    print("  -w ipaddr : enable WebAPI and use provided ip address (default disabled)")
+    print("  -p port   : port for WebAPI (default 8080)")
+    print("  -d        : debug mode (commands writted to log file only)")
+    print("  -?        : this help")
             
 def main():
     events = []
@@ -452,10 +585,12 @@ def main():
     sun = None
     config_file = "mas.config"
     log_file = "mas.log"
+    ip_address = ""
+    port = 8080
     debug_mode = False
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "?c:l:d")
+        opts, args = getopt.getopt(sys.argv[1:], "?c:l:w:p:d")
     except getopt.GetoptError as e:
         print(str(e)+"\n")
         usage()
@@ -466,6 +601,10 @@ def main():
             config_file = a.strip()
         elif o == "-l":
             log_file = a.strip()
+        elif o == "-w":
+            ip_address = a.strip()
+        elif o == "-p":
+            port = int(a.strip())
         elif o == "-d":
             debug_mode = True
         else:
@@ -497,18 +636,24 @@ def main():
     
     if(lat_long != None):
         sun = sunstate.Sun(lat_long[0], lat_long[1], sunstate.LocalTimezone())
-    
+        
     timer_thread = TimerThread(events, sun)
     timer_thread.start()
     
     print("Running Mini Automation Server "+__version__)
-    print("Use Ctrl-C to quit.")
     
-    try:
-        while True:    
-            time.sleep(600)
-    except KeyboardInterrupt:
-        pass
+    # Check if WebAPI should be started or not
+    if(ip_address != ""):
+        logging.info("WebAPI started on IP: "+ip_address+" Port: "+str(port))
+        webApi = WebAPI(ip_address, port, control_library, groups)
+        webApi.start()
+    else:
+        try:
+            print("Hit Ctrl-C to quit.")
+            while True:    
+                time.sleep(600)
+        except KeyboardInterrupt:
+            pass
         
     print("Shutting down...")
     logging.info('Mini Automation Sever Exit')
