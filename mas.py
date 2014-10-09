@@ -136,7 +136,22 @@ class TelldusLibrary:
                     self.library.tdDim(device,dim_level)
                 else:
                     logging.warning(str(device) + " cannot be dimmed")   
-                
+  
+    def last_cmd_was_on(self, device):
+        ''' True if last command sent to the device was on.
+            Note that this don't necessary means that the device is on since
+            the device could have been turned off by something else than the
+            Tellstick. '''
+        return (self.library.tdLastSentCommand(device, 1) == 1)
+        
+    def last_dim_level(self, device):
+        ''' Return the last dim level sent to the device.
+            Note that this don't necessary means that the device currently 
+            has this dim value since device could have been dimmed by  
+            something else than the Tellstick. ''' 
+         # @@@@@ Not working
+        return int(self.library.tdLastSentValue(device))       
+  
 ###############################################################################
 # LOAD CONFIGURATION FILE HANDLING
 ###############################################################################
@@ -483,9 +498,7 @@ class WebAPI:
         self.app = bottle.Bottle()
         self._route()
 
-    def _route(self):
-        self.app.route('/', method="GET", 
-                       callback=self._index)
+    def _route(self):                  
         self.app.route('/devices', method="GET", 
                        callback=self._get_devices)
         self.app.route('/device/<id:int>', method="GET", 
@@ -496,6 +509,10 @@ class WebAPI:
                        callback=self._turn_off_device)
         self.app.route('/device/<id:int>/dim/<level:int>', method="GET", 
                        callback=self._dim_device)
+        self.app.route('/', method="GET", 
+                       callback=self._index)   
+        self.app.route('/<path:path>', method="GET", 
+                       callback=self._file) 
                        
     def start(self):
         self.app.run(host=self.host, port=self.port)
@@ -505,7 +522,10 @@ class WebAPI:
         return {'result' : 'success' }
         
     def _index(self):
-        return 'Welcome'
+        return bottle.static_file("index.html", root="./html/")
+
+    def _file(self, path):
+        return bottle.static_file(path, root="./html/")
         
     def _get_device(self, id):
         if id in self.control.get_device_IDs():        
@@ -513,12 +533,14 @@ class WebAPI:
                 'id'              : id,
                 'name'            : self.control.get_name(id),
                 'supports_on_off' : self.control.supports_on_off(id),
-                'supports_dim'    : self.control.supports_dim(id)
+                'supports_dim'    : self.control.supports_dim(id),
+                'last_cmd_was_on' : self.control.last_cmd_was_on(id)
             }
             if(self.control.supports_dim(id)):
                 device.update({
                     'dim_level_min'   : self.control.DIM_LEVEL_MIN,
-                    'dim_level_max'   : self.control.DIM_LEVEL_MAX
+                    'dim_level_max'   : self.control.DIM_LEVEL_MAX,
+                    'dim_level_last'  : self.control.last_dim_level(id)
                 })
             bottle.response.content_type = 'application/json'
             return device
@@ -645,11 +667,20 @@ def main():
     # Check if WebAPI should be started or not
     if(ip_address != ""):
         logging.info("WebAPI started on IP: "+ip_address+" Port: "+str(port))
-        webApi = WebAPI(ip_address, port, control_library, groups)
-        webApi.start()
-    else:
         try:
-            print("Hit Ctrl-C to quit.")
+            webApi = WebAPI(ip_address, port, control_library, groups)
+            webApi.start()
+        except Exception as e:
+            logging.error("Exception in WebAPI")
+            sys.stderr.write("Exception in WebAPI: \n\n")
+            timer_thread.stop()
+            # Raise exception further so that the user can find out the 
+            # problem
+            raise e
+            
+    else:
+        print("Hit Ctrl-C to quit.")
+        try:
             while True:    
                 time.sleep(600)
         except KeyboardInterrupt:

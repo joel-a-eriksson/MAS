@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>MAS WebAPI</title>
+
+<meta name="viewport" content="width=device-width, initial-scale=1">
+
+<link rel="stylesheet" href="jquery.mobile-1.4.4.min.css" />
+<script src="jquery-1.11.1.min.js"></script>
+<script src="jquery.mobile-1.4.4.min.js"></script>
+<script>
+
+$(document).ready(function(){
+		$.getJSON("/devices",function(devices){
+			$.each(devices, function(i, device){
+				listDevice(device);
+			});
+		});
+});
+
+function listDevice(device){
+	device_element =
+	'<li>' +
+	'	<h1 align="center">' + device.name + '</h1>';
+	
+	if(device.supports_on_off){
+		device_element +=
+		'<fieldset class="ui-grid-a">'+
+		'	<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOn('+device.id+')">On</button></div>'+
+		'	<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOff('+device.id+')">Off</button></div>'+
+		'</fieldset>';		
+	}
+	if(device.supports_dim){
+		device_element +=
+		'<input type="range" id="dim'+device.id+'" value="'+device.dim_level_last+'" min="'+device.dim_level_min+'" max="'+device.dim_level_max+'" data-highlight="true" onchange="dim(this.value,'+device.id+')">';
+	}
+
+	device_element += "</li>";
+
+	$("#device_list").append(device_element);
+	if(device.supports_dim){
+		$("#device_list").trigger("create");
+	}
+}
+
+function turnOn(id){
+	$.getJSON("/device/"+id+"/on",function(devices){
+		// TODO
+	});
+}
+
+function turnOff(id){
+	$.getJSON("/device/"+id+"/off",function(devices){
+		// TODO
+	});
+}
+
+var dimming_lock = false;
+function dim(value, id){
+	// Since the slider input will give events continuously we have a lock
+	// that avoids sending JSON request each time and lock up the server.
+	if (dimming_lock == false) {
+		dimming_lock = true;
+		$.getJSON("/device/"+id+"/dim/"+value,function(devices){
+			dimming_lock = false;
+		});	
+	}
+}
+
+</script>
+</head>
+<body>
+
+<!-- Device page -->
+<div data-role="page" id="devices">
+
+	<div data-role="header">
+		<h1>Devices</h1>
+	</div>
+
+	<div role="main" class="ui-content">	
+		<ul data-role="listview" id="device_list">
+			<!-- Dynamically created device list items goes here -->
+		</ul>
+		
+		
+	<!--<div data-role="footer">
+		<h4>Footer</h4>
+	</div>-->
+</div><!-- /page -->
+
+
+</body>
+</html>

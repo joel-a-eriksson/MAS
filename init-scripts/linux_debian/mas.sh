@@ -35,8 +35,12 @@
 DIR=/home/pi/mas
 CONFIG_FILE=$DIR/mas.config
 LOG_FILE=$DIR/mas.log
+MY_IP=`hostname -I`
+PORT="8080"
+# Comment out below line if you dont wnat to enable the WEB API/UI
+WEB_API_OPTS="-w $MY_IP -p $PORT"
 DAEMON=$DIR/mas.py
-DAEMON_OPTS="-c $CONFIG_FILE -l $LOG_FILE"
+DAEMON_OPTS="-c $CONFIG_FILE -l $LOG_FILE $WEB_API_OPTS"
 DAEMON_NAME=mas
 DAEMON_USER=root
 PIDFILE=/var/run/$DAEMON_NAME.pid
