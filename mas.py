@@ -23,7 +23,7 @@ from ctypes import util
 from ctypes import *
 from threading import Timer
 from datetime import datetime, timedelta
-import getopt, sys, time, threading, re, logging, sunstate, bottle, json
+import getopt, sys, time, threading, re, logging, sunstate, bottle, json, os
 
 __version__ = "1.2.x_beta"
 
@@ -522,10 +522,12 @@ class WebAPI:
         return {'result' : 'success' }
         
     def _index(self):
-        return bottle.static_file("index.html", root="./html/")
+        return bottle.static_file("index.html", 
+                                  root=os.path.dirname(__file__) + "/html/")
 
     def _file(self, path):
-        return bottle.static_file(path, root="./html/")
+        return bottle.static_file(path, 
+                                  root=os.path.dirname(__file__) + "/html/")
         
     def _get_device(self, id):
         if id in self.control.get_device_IDs():        
@@ -605,11 +607,12 @@ def main():
     control_library = None
     lat_long = None
     sun = None
-    config_file = "mas.config"
-    log_file = "mas.log"
+    path = os.path.dirname(__file__) + "/"
+    config_file = path + "mas.config"
+    log_file = path + "mas.log"
     ip_address = ""
     port = 8080
-    debug_mode = False
+    debug_mode = False    
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "?c:l:w:p:d")
