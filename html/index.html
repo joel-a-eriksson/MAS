@@ -74,19 +74,28 @@ function dim(value, id){
 <!-- Device page -->
 <div data-role="page" id="devices">
 
-	<div data-role="header">
-		<h1>Devices</h1>
+	<div data-role="panel" id="menu">
+		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Groups/Devices</a>
+		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Edit Groups/Devices</a>
+		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Events</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Settings</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Close</a>
+	</div>
+
+	<div data-role="header" id="header">
+		<a href="#menu" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
+		<h1>Groups / Devices</h1>
 	</div>
 
 	<div role="main" class="ui-content">	
 		<ul data-role="listview" id="device_list">
 			<!-- Dynamically created device list items goes here -->
 		</ul>
+	</div>	
 		
-		
-	<!--<div data-role="footer">
-		<h4>Footer</h4>
-	</div>-->
+	<div data-role="footer">
+		<!--<h4>Footer</h4>-->
+	</div>
 </div><!-- /page -->
 
 

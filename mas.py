@@ -149,8 +149,11 @@ class TelldusLibrary:
             Note that this don't necessary means that the device currently 
             has this dim value since device could have been dimmed by  
             something else than the Tellstick. ''' 
-         # @@@@@ Not working
-        return int(self.library.tdLastSentValue(device))       
+        try:
+            value = int(self.library.tdLastSentValue(device))
+        except:
+            value = 0
+        return value     
   
 ###############################################################################
 # LOAD CONFIGURATION FILE HANDLING
