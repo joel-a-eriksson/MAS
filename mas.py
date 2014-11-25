@@ -512,6 +512,16 @@ class WebAPI:
                        callback=self._turn_off_device)
         self.app.route('/device/<id:int>/dim/<level:int>', method="GET", 
                        callback=self._dim_device)
+        self.app.route('/groups', method="GET", 
+                       callback=self._get_groups)
+        self.app.route('/group/<id:int>', method="GET", 
+                       callback=self._get_group)
+        self.app.route('/group/<id:int>/on', method="GET", 
+                       callback=self._turn_on_group)
+        self.app.route('/group/<id:int>/off', method="GET", 
+                       callback=self._turn_off_group)
+        self.app.route('/group/<id:int>/dim/<level:int>', method="GET", 
+                       callback=self._dim_group)        
         self.app.route('/', method="GET", 
                        callback=self._index)   
         self.app.route('/<path:path>', method="GET", 
@@ -520,7 +530,7 @@ class WebAPI:
     def start(self):
         self.app.run(host=self.host, port=self.port)
 
-    def _return_succes(self):
+    def _return_success(self):
         bottle.response.content_type = 'application/json'
         return {'result' : 'success' }
         
@@ -565,7 +575,7 @@ class WebAPI:
             bottle.abort(400, "Device ID '" + str(id) + "' don't support on")        
         else:
             self.control.turn_on([id])
-            return self._return_succes()
+            return self._return_success()
 
     def _turn_off_device(self, id):
         if id not in self.control.get_device_IDs():    
@@ -574,7 +584,7 @@ class WebAPI:
             bottle.abort(400, "Device ID '" + str(id) + "' don't support off")        
         else:
             self.control.turn_off([id])
-            return self._return_succes()
+            return self._return_success()
             
     def _dim_device(self, id, level):
         if id not in self.control.get_device_IDs():    
@@ -586,7 +596,72 @@ class WebAPI:
             bottle.abort(400, "Dim level '" + str(level) + "' invalid")            
         else:
             self.control.dim([id],level)
-            return self._return_succes()            
+            return self._return_success()   
+
+    def _get_group(self, id):
+        supports_on_off = False
+        supports_dim = False
+        group = self.groups.get(id)
+        if(group == None):
+            bottle.abort(400, "Group with ID '" + str(id) + "' not found")
+        else:
+            for device_id in group.devices:
+                if (self.control.supports_on_off(device_id)):
+                    supports_on_off = True
+                    break
+            for device_id in group.devices:
+                if (self.control.supports_dim(device_id)):
+                    supports_dim = True
+                    break       
+            group_ret = {
+                'id'              : id,
+                'name'            : group.name,
+                'devices'         : group.devices,
+                'supports_on_off' : supports_on_off,                
+                'supports_dim'    : supports_dim            
+            }
+            if (supports_dim):
+                group_ret.update(
+                    {
+                    'dim_level_min' : self.control.DIM_LEVEL_MIN,
+                    'dim_level_max' : self.control.DIM_LEVEL_MAX
+                    })                 
+            bottle.response.content_type = 'application/json'
+            return group_ret
+                
+    def _get_groups(self):
+        result = []
+        for group in self.groups.groups:
+            result.append(self._get_group(group.id))
+        return json.dumps(result)            
+            
+    def _turn_on_group(self, id):
+        group = self.groups.get(id)
+        if(group == None):
+            bottle.abort(400, "Group with ID '" + str(id) + "' not found") 
+        else:
+            self.control.turn_on(group.devices)
+            return self._return_success()
+
+    def _turn_off_group(self, id):
+        group = self.groups.get(id)
+        if(group == None):
+            bottle.abort(400, "Group with ID '" + str(id) + "' not found") 
+        else:
+            self.control.turn_off(group.devices)
+            return self._return_success()            
+            
+    def _dim_group(self, id, level):
+        group = self.groups.get(id)
+        if(group == None):
+            bottle.abort(400, "Group with ID '" + str(id) + "' not found") 
+        elif ((level < self.control.DIM_LEVEL_MIN) or 
+              (level > self.control.DIM_LEVEL_MAX)):
+            bottle.abort(400, "Dim level '" + str(level) + "' invalid")
+        else:
+            self.control.dim(group.devices,level)
+            return self._return_success()   
+            
             
 #@route('/hello/<name>')
 #def index(name):
