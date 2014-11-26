@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>MAS WebAPI</title>
+<title>MAS Web UI</title>
 
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
@@ -11,11 +11,16 @@
 <script>
 
 $(document).ready(function(){
+		$.getJSON("/groups",function(groups){
+			$.each(groups, function(i, group){
+				listGroup(group);
+			});		
+		});
 		$.getJSON("/devices",function(devices){
 			$.each(devices, function(i, device){
 				listDevice(device);
 			});
-		});
+		});	
 });
 
 function listDevice(device){
@@ -44,13 +49,13 @@ function listDevice(device){
 }
 
 function turnOn(id){
-	$.getJSON("/device/"+id+"/on",function(devices){
+	$.getJSON("/device/"+id+"/on",function(retVal){
 		// TODO
 	});
 }
 
 function turnOff(id){
-	$.getJSON("/device/"+id+"/off",function(devices){
+	$.getJSON("/device/"+id+"/off",function(retVal){
 		// TODO
 	});
 }
@@ -61,8 +66,54 @@ function dim(value, id){
 	// that avoids sending JSON request each time and lock up the server.
 	if (dimming_lock == false) {
 		dimming_lock = true;
-		$.getJSON("/device/"+id+"/dim/"+value,function(devices){
+		$.getJSON("/device/"+id+"/dim/"+value,function(retVal){
 			dimming_lock = false;
+		});	
+	}
+}
+
+function listGroup(group){
+	group_element =
+	'<li>' +
+	'	<h1 align="center">(G) ' + group.name + '</h1>';
+	
+	if(group.supports_on_off){
+		group_element +=
+		'<fieldset class="ui-grid-a">'+
+		'	<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOnGroup('+group.id+')">On</button></div>'+
+		'	<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOffGroup('+group.id+')">Off</button></div>'+
+		'</fieldset>';		
+	}
+	if(group.supports_dim){
+		group_element +=
+		'<input type="range" id="dim_group'+group.id+'" value="0" min="'+group.dim_level_min+'" max="'+group.dim_level_max+'" data-highlight="true" onchange="dimGroup(this.value,'+group.id+')">';
+	}
+
+	group_element += "</li>";
+
+	$("#group_list").append(group_element);
+}
+
+function turnOnGroup(id){
+	$.getJSON("/group/"+id+"/on",function(retVal){
+		// TODO
+	});
+}
+
+function turnOffGroup(id){
+	$.getJSON("/group/"+id+"/off",function(retVal){
+		// TODO
+	});
+}
+
+var dimming_group_lock = false;
+function dimGroup(value, id){
+	// Since the slider input will give events continuously we have a lock
+	// that avoids sending JSON request each time and lock up the server.
+	if (dimming_group_lock == false) {
+		dimming_group_lock = true;
+		$.getJSON("/group/"+id+"/dim/"+value,function(retVal){
+			dimming_group_lock = false;
 		});	
 	}
 }
@@ -74,6 +125,7 @@ function dim(value, id){
 <!-- Device page -->
 <div data-role="page" id="devices">
 
+	<!-- TO DO
 	<div data-role="panel" id="menu">
 		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Groups/Devices</a>
 		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Edit Groups/Devices</a>
@@ -81,16 +133,21 @@ function dim(value, id){
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Settings</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Close</a>
 	</div>
+	-->
 
 	<div data-role="header" id="header">
 		<a href="#menu" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
 		<h1>Groups / Devices</h1>
 	</div>
 
-	<div role="main" class="ui-content">	
+	<div role="main" class="ui-content">
+		<ul data-role="listview" id="group_list">
+			<!-- Dynamically created group list items goes here -->
+		</ul>
+		<br><br>
 		<ul data-role="listview" id="device_list">
 			<!-- Dynamically created device list items goes here -->
-		</ul>
+		</ul>		
 	</div>	
 		
 	<div data-role="footer">
