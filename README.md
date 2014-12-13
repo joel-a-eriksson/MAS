@@ -11,6 +11,10 @@ Mini Automation Server has following features:
 * Restrict your devices to only turn on or off if sun is up or down
 * Dimming support for devices that are dimmable
 * Group your devices
+* WEB user interface for turning on/off your groups or devices from a web browser or mobile device.
+* WEB API for developing your own remote applications
+
+![screenshoot](screenshot.jpg)
 
 All scheduling and configurations are made in a simple user editable text file called configuration file.
 
@@ -73,13 +77,20 @@ Using the Sunset, Sunrise, Sunup or Sundown requires latitude and longitude to b
 See the comments in *mas.config* for the complete syntax.    
     
 ### Running
-The application is started by executing the *mas.sh* Python script:
+The application is started by executing the *mas.py* Python script:
 
-    $ python mas.sh
+    $ python mas.py
     Running Mini Automation Server 1.0.0
     Use Ctrl-C to quit.
 
-The application will run until Ctrl + C are stroked on the keyboard. Execute *python mas.sh -?* for options.
+The application will run until Ctrl + C are stroked on the keyboard. Execute *python mas.py -?* for options.
+
+### Enabling the WEB interface and API
+You may optionally start the WEB interface (using HTML and JavaScript) and export the WEB API. 
+
+	$ python mas.py -w <ip-address> -p <port>
+	
+Port 8080 is used by default if the -p option is omitted. The startup script, mas.sh, will start the WEB interface/API by default.
 
 ### Start as a Service
 An init.d script is provided for Debian based platforms, such as [Rasbian OS](http://www.raspbian.org/) for [Raspberry Pi](http://www.raspberrypi.org/). Following instruction assumes that the scripts are copied to */home/pi/mas/*. If a different folder is used, please change the *DIR* variable in *mas.sh*.
@@ -108,6 +119,10 @@ If the configuration file is updated, restart the application by rebooting the s
 This application is written by Joel Eriksson and is licensed under the GNU Public License.
 
 ### Version history
+**1.2.0** (December 13, 2014)
+
+* Added support for WEB interface and WEB API 
+
 **1.1.0** (Mars 16, 2014)
 
 * Added support for time offset on Sunset and Sunrise 

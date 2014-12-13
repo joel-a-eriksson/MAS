@@ -25,7 +25,7 @@ from threading import Timer
 from datetime import datetime, timedelta
 import getopt, sys, time, threading, re, logging, sunstate, bottle, json, os
 
-__version__ = "1.2.x_beta"
+__version__ = "1.2.0"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
