@@ -79,7 +79,8 @@ See the comments in *mas.config* for the complete syntax.
 ### Running
 The application is started by executing the *mas.py* Python script:
 
-    $ python mas.py
+    $ chmod +x mas.py
+	$ ./mas.py
     Running Mini Automation Server 1.0.0
     Use Ctrl-C to quit.
 
@@ -88,7 +89,7 @@ The application will run until Ctrl + C are stroked on the keyboard. Execute *py
 ### Enabling the WEB interface and API
 You may optionally start the WEB interface (using HTML and JavaScript) and export the WEB API. 
 
-	$ python mas.py -w <ip-address> -p <port>
+	$ ./mas.py -w <ip-address> -p <port>
 	
 Port 8080 is used by default if the -p option is omitted. The startup script, mas.sh, will start the WEB interface/API by default.
 
