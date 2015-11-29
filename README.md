@@ -120,6 +120,10 @@ If the configuration file is updated, restart the application by rebooting the s
 This application is written by Joel Eriksson and is licensed under the GNU Public License.
 
 ### Version history
+**1.2.1** (December 3, 2015)
+
+* Added support view log and edit configuration online
+
 **1.2.0** (December 13, 2014)
 
 * Added support for WEB interface and WEB API 

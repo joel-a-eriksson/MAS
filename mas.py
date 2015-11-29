@@ -24,8 +24,9 @@ from ctypes import *
 from threading import Timer
 from datetime import datetime, timedelta
 import getopt, sys, time, threading, re, logging, sunstate, bottle, json, os
+import signal, shutil
 
-__version__ = "1.2.0"
+__version__ = "1.2.1"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
@@ -279,14 +280,14 @@ def parse_GROUP(line):
     name = ""
     groupid = 0    
     devices = []
-    
+
     #Parse name
     name_split = line.split('"')
     if(len(name_split) != 3):
         raise Exception('group name missing. Must be within "".\n   '
         + line)    
     name = name_split[1]
-    
+ 
     #Parse group id
     id_split = name_split[0].split()
     if(len(id_split) != 2):
@@ -296,7 +297,7 @@ def parse_GROUP(line):
         groupid = int(id_split[1][1:])
     else:
         groupid = int(id_split[1])
-    
+
     #Parse device id:s
     device_split = name_split[2].split()
     if(len(device_split) == 0):
@@ -304,7 +305,7 @@ def parse_GROUP(line):
         + line)    
     for device in device_split:
         devices.append(int(device))
-        
+    
     return Group(groupid, name, devices)
     
 def load_config_file(filename, control_library, events, groups):
@@ -345,18 +346,14 @@ def load_config_file(filename, control_library, events, groups):
 # GROUP
 ###############################################################################        
 class Group:
-    id = 0
-    name = ""
-    devices = []
     def __init__(self, id, name, devices):
         self.id = id
         self.name = name
         self.devices = devices
 
 class Groups:
-    groups = []
     def __init__(self):
-        pass
+        self.groups = []
     def add(self, group):
         for g in self.groups:
             if (g.id == group.id):
@@ -402,33 +399,45 @@ class FunctionDim(FunctionBase):
 # TIMER HANDLING
 ###############################################################################
 class TimerThread(threading.Thread):
-    event = None
-    event_list = None
-    sun = None
     
     def __init__(self, event_list, sun):
         threading.Thread.__init__(self)
-        self.event = threading.Event()
+        self.run_event = threading.Event() # Used to order thread stop run
+        self.semaphore = threading.Semaphore() # Used to block thread from run
         self.event_list = event_list
         self.sun = sun
+        self.last_date = None
+    
+    def change_data(self, event_list, sun):
+        self.semaphore.acquire()
+        self.event_list = event_list
+        self.sun = sun
+        self.last_date = None # Force recalculation of sunset and sunrise
+        self.semaphore.release()
         
     def run(self):
-        last_date = None
         sunrise_time = None
         sunset_time = None
-        while not self.event.is_set():
+        while not self.run_event.is_set():
+            self.semaphore.acquire()
+            
             dt = datetime.now()
-            if ((last_date != dt.date()) and (self.sun != None)):
+            # Only recalculate sunset and sunrise once a day
+            if ((self.last_date != dt.date()) and (self.sun != None)):
                 sunrise_time = self.sun.sunrise()
                 sunset_time = self.sun.sunset()
-                last_date = dt.date()
+                self.last_date = dt.date()
+                
             for event in self.event_list:
                 if(event.time_match(dt, sunrise_time, sunset_time)):
                     event.execute()
-            self.event.wait(60 - dt.second + 2)
+                    
+            self.semaphore.release()
+            self.run_event.wait(60 - dt.second + 2)
 
     def stop(self):
-        self.event.set()
+        self.run_event.set()
+        self.join()
 
 class TimeEvent:
     TIME_SUNRISE = -1
@@ -487,17 +496,16 @@ class TimeEvent:
 # WEB API
 ###############################################################################
 class WebAPI:
-    host = ""
-    port = ""
-    control = None
-    groups = None
-    app = None
     
-    def __init__(self, host, port, control, groups):
+    def __init__(self, host, port, control, groups, config_file, log_file, 
+                 timer_thread):
         self.host = host
         self.port = port
         self.control = control
         self.groups = groups
+        self.config_file = config_file
+        self.log_file = log_file
+        self.timer_thread = timer_thread
         self.app = bottle.Bottle()
         self._route()
 
@@ -521,7 +529,13 @@ class WebAPI:
         self.app.route('/group/<id:int>/off', method="GET", 
                        callback=self._turn_off_group)
         self.app.route('/group/<id:int>/dim/<level:int>', method="GET", 
-                       callback=self._dim_group)        
+                       callback=self._dim_group)
+        self.app.route('/configuration', method="GET", 
+                       callback=self._get_config)
+        self.app.route('/configuration', method="POST", 
+                       callback=self._set_config)
+        self.app.route('/log', method="GET", 
+                       callback=self._get_log)                       
         self.app.route('/', method="GET", 
                        callback=self._index)   
         self.app.route('/<path:path>', method="GET", 
@@ -660,13 +674,77 @@ class WebAPI:
             bottle.abort(400, "Dim level '" + str(level) + "' invalid")
         else:
             self.control.dim(group.devices,level)
-            return self._return_success()   
+            return self._return_success()
             
+    def _get_config(self):
+        bottle.response.content_type = 'text/plain'
+        try:
+            fo = open(self.config_file,"r")
+            result = fo.read()
+            fo.close()
+            return result
+        except Exception:
+            bottle.response.status = 500
+            return "Unable to open: " + self.config_file          
+
+    def _set_config(self):
+        bottle.response.content_type = 'text/plain'
+        
+        # Save configuration to temporary file
+        temp_file = self.config_file + ".tmp"
+        try:
+            fo = open(temp_file,mode="w")
+            fo.write(bottle.request.body.read())
+            fo.close()
+        except Exception as e:
+            bottle.response.status = 500
+            return "Unable to save temporary config file. \n\n" + e.args[0]
+
+        # Try to parse the temporary file (validate syntax etc.)
+        events = []
+        groups = Groups()
+        lat_long = None
+        try:
+            lat_long = load_config_file(temp_file, self.control, 
+                                        events, groups)
+        except Exception as e:
+            bottle.response.status = 500
+            return e.args[0]
             
-#@route('/hello/<name>')
-#def index(name):
-#   return template('<b>Hello {{name}}</b>!', name=name)
-    
+        # Make a backup of the current configuration
+        try:
+            shutil.copyfile(self.config_file, self.config_file + ".bk")
+        except Exception as e:
+            bottle.response.status = 500
+            return "Unable to backup configuration. \n\n" + e.args[0]
+
+        # Copy temporary file to original file
+        try:
+            shutil.copyfile(temp_file, self.config_file)
+        except Exception as e:
+            bottle.response.status = 500
+            return "Unable create configuration file. \n\n" + e.args[0]          
+        
+        # Create a new sun object
+        if(lat_long != None):
+            sun = sunstate.Sun(lat_long[0], lat_long[1], sunstate.LocalTimezone())
+        
+        # Update the timer thread with new events and sun
+        self.timer_thread.change_data(events, sun)        
+
+        return self._return_success() 
+ 
+    def _get_log(self):
+        bottle.response.content_type = 'text/plain'
+        try:
+            fo = open(self.log_file,"r")
+            result = fo.read()
+            fo.close()
+            return result
+        except Exception:
+            bottle.response.status = 500
+            return "Unable to open: " + self.log_file 
+ 
 ###############################################################################
 # MAIN PROGRAM
 ###############################################################################
@@ -749,7 +827,8 @@ def main():
     if(ip_address != ""):
         logging.info("WebAPI started on IP: "+ip_address+" Port: "+str(port))
         try:
-            webApi = WebAPI(ip_address, port, control_library, groups)
+            webApi = WebAPI(ip_address, port, control_library, groups,
+                            config_file, log_file, timer_thread)
             webApi.start()
         except Exception as e:
             logging.error("Exception in WebAPI")

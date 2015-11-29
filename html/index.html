@@ -11,16 +11,43 @@
 <script>
 
 $(document).ready(function(){
-		$.getJSON("/groups",function(groups){
-			$.each(groups, function(i, group){
-				listGroup(group);
-			});		
+	$.getJSON("/groups",function(groups){
+		$.each(groups, function(i, group){
+			listGroup(group);
+		});		
+	});
+	$.getJSON("/devices",function(devices){
+		$.each(devices, function(i, device){
+			listDevice(device);
 		});
-		$.getJSON("/devices",function(devices){
-			$.each(devices, function(i, device){
-				listDevice(device);
-			});
-		});	
+	});
+	$.get("/configuration",function(config){
+		$("#config_area").val(config);
+	});
+	$.get("/log",function(log){
+		$("#log_area").text(log);
+	});
+	$( "#save_config" ).on( "click", function() {
+		$.ajax({
+			type : "POST",
+			dataType : "text",
+			url : "/configuration",
+			data : $("#config_area").val(),
+			success : function(response) {
+				$("#popupSaveOk").popup('open');
+				setTimeout(function() {
+					$("#popupSaveOk").popup("close");
+					}, 2000);
+			},
+			error : function(xhr, status, error) {
+				$("#popupSaveErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+				$("#popupSaveError").popup('open');
+			}
+		});
+	});
+	$( "#update_log" ).on( "click", function() {
+			$("#log_area").text(log);
+		});
 });
 
 function listDevice(device){
@@ -125,15 +152,11 @@ function dimGroup(value, id){
 <!-- Device page -->
 <div data-role="page" id="devices">
 
-	<!-- TO DO
 	<div data-role="panel" id="menu">
-		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Groups/Devices</a>
-		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Edit Groups/Devices</a>
-		<a href="#header" class="ui-btn ui-shadow" data-rel="close">Events</a>
-		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Settings</a>
-		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Close</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Configuration</a>
+		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
-	-->
 
 	<div data-role="header" id="header">
 		<a href="#menu" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
@@ -155,6 +178,67 @@ function dimGroup(value, id){
 	</div>
 </div><!-- /page -->
 
+<!-- Configuration page -->
+<div data-role="page" id="configuration">
+
+	<div data-role="panel" id="menu_config">
+		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
+		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
+	</div>
+
+	<div data-role="header" id="header">
+		<a href="#menu_config" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
+		<h1>Configuration</h1>
+	</div>
+	
+	<div role="main" class="ui-content">
+		<a data-role="button" data-icon="check" id="save_config">Save</a>
+		<!-- Configuration is filled here -->
+		<textarea id="config_area"></textarea>
+	</div>	
+		
+	<div data-role="footer">
+		<!--<h4>Footer</h4>-->
+	</div>
+	
+	<!-- Popup dialog: Saved successfully -->
+	<div data-role="popup" id="popupSaveOk">
+		<p>Successfully saved</p>
+	</div>
+	
+	<!-- Popup dialog: Save error -->
+	<div data-role="popup" id="popupSaveError" class="ui-content" data-theme="e" style="max-width:350px; background-color: wheat;">
+		<a href="#" data-rel="back" data-role="button" data-theme="a" data-icon="delete" data-iconpos="notext" class="ui-btn-left">Close</a>
+		<p><strong>ERROR!</strong></p>
+        <p id="popupSaveErrorMsg">Reason not known</p>
+	</div>
+</div><!-- /page -->
+
+<!-- Log page -->
+<div data-role="page" id="log">
+
+	<div data-role="panel" id="menu_log">
+		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Configuration</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
+	</div>
+
+	<div data-role="header" id="header">
+		<a href="#menu_log" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
+		<h1>Log</h1>
+	</div>
+	
+	<div role="main" class="ui-content">
+		<a data-role="button" data-icon="refresh" id="update_log">Update</a>
+		<!-- Log is filled here -->
+		<pre id="log_area"></pre>
+	</div>	
+		
+	<div data-role="footer">
+		<!--<h4>Footer</h4>-->
+	</div>
+</div><!-- /page -->
 
 </body>
 </html>
