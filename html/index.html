@@ -46,8 +46,10 @@ $(document).ready(function(){
 		});
 	});
 	$( "#update_log" ).on( "click", function() {
+		$.get("/log",function(log){
 			$("#log_area").text(log);
 		});
+	});
 });
 
 function listDevice(device){
