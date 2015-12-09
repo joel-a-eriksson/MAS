@@ -6,6 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="jquery.mobile-1.4.4.min.css" />
+<style>
+	/* Make horizontal buttons fill width of screen 
+	.ui-grid-a, .ui-grid-a .ui-controlgroup-controls {width: 100%}
+	.button_left { width: 45.5%; float: left; margin-left: 1%}
+	.button_right {width: 45.5%}	*/
+</style>
 <script src="jquery-1.11.1.min.js"></script>
 <script src="jquery.mobile-1.4.4.min.js"></script>
 <script>
@@ -14,12 +20,14 @@ $(document).ready(function(){
 	$.getJSON("/groups",function(groups){
 		$.each(groups, function(i, group){
 			listGroup(group);
-		});		
+		});
 	});
 	$.getJSON("/devices",function(devices){
 		$.each(devices, function(i, device){
 			listDevice(device);
 		});
+		$("#device_config_list").listview('refresh');
+		
 	});
 	$.get("/configuration",function(config){
 		$("#config_area").val(config);
@@ -50,10 +58,18 @@ $(document).ready(function(){
 			$("#log_area").text(log);
 		});
 	});
+	$( "#new_device" ).on( "click", function() {
+		editDeviceNew();
+	});
 });
 
+function refreshPage() {
+	location.reload();
+}
+
 function listDevice(device){
-	device_element =
+	// First fill in the device list in the Groups / Devices list
+	var device_element =
 	'<li>' +
 	'	<h1 align="center">' + device.name + '</h1>';
 	
@@ -62,7 +78,7 @@ function listDevice(device){
 		'<fieldset class="ui-grid-a">'+
 		'	<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOn('+device.id+')">On</button></div>'+
 		'	<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOff('+device.id+')">Off</button></div>'+
-		'</fieldset>';		
+		'</fieldset>';	
 	}
 	if(device.supports_dim){
 		device_element +=
@@ -75,6 +91,11 @@ function listDevice(device){
 	if(device.supports_dim){
 		$("#device_list").trigger("create");
 	}
+	
+	// Then list the device in the configure device list
+	var device_config_element =
+	'<li onclick="editDevice('+device.id+')">' + device.id + ": " + device.name + '</li>';
+	$("#device_config_list").append(device_config_element);
 }
 
 function turnOn(id){
@@ -102,7 +123,7 @@ function dim(value, id){
 }
 
 function listGroup(group){
-	group_element =
+	var group_element =
 	'<li>' +
 	'	<h1 align="center">(G) ' + group.name + '</h1>';
 	
@@ -147,15 +168,149 @@ function dimGroup(value, id){
 	}
 }
 
+function editDevice(id) {
+	$.getJSON("/device/"+id+"/config",function(device){
+		$("#device_config_heading").text("Device " + device.id);
+		$("#device_config_id").val(device.id);
+		$("#device_config_name").val(device.name);	
+		$("#device_config_protocol").val(device.protocol);
+		$("#device_config_model").val(device.model);
+		$("#device_config_devices").val(device.parameters.devices);
+		$("#device_config_house").val(device.parameters.house);
+		$("#device_config_unit").val(device.parameters.unit);
+		$("#device_config_code").val(device.parameters.code);
+		$("#device_config_system").val(device.parameters.system);
+		$("#device_config_units").val(device.parameters.units);
+		$("#device_config_fade").val(device.parameters.fade);
+		$("#copy_device").show();
+		$("#delete_device").show();
+		$(':mobile-pagecontainer').pagecontainer('change', '#device_config');
+	});
+}
+
+function editDeviceNew() {
+	$("#device_config_heading").text("New device");
+	$("#device_config_id").val(-1);
+	$("#device_config_name").val("");	
+	$("#device_config_protocol").val("");
+	$("#device_config_model").val("");
+	$("#device_config_devices").val("");
+	$("#device_config_house").val("");
+	$("#device_config_unit").val("");
+	$("#device_config_code").val("");
+	$("#device_config_system").val("");
+	$("#device_config_units").val("");
+	$("#device_config_fade").val("");
+	$("#copy_device").hide();
+	$("#delete_device").hide();
+	$(':mobile-pagecontainer').pagecontainer('change', '#device_config');
+}
+
+function editDeviceCopy() {
+	$("#device_config_heading").text("New device");
+	$("#device_config_id").val(-1);
+	$("#device_config_name").val("Copy of " + $("#device_config_name").val());
+	$("#copy_device").hide();
+	$("#delete_device").hide();	
+}
+
+function editDeviceGetDeviceObject() {
+	var device = {
+		id: parseInt($("#device_config_id").val()),
+		name: $("#device_config_name").val(),
+		protocol: $("#device_config_protocol").val(),
+		model: $("#device_config_model").val(),
+		parameters: {
+			devices: $("#device_config_devices").val(),
+			house: $("#device_config_house").val(),
+			unit: $("#device_config_unit").val(),
+			code: $("#device_config_code").val(),
+			system: $("#device_config_system").val(),
+			units: $("#device_config_units").val(),
+			fade: $("#device_config_fade").val()
+		}
+	};
+	
+	return device;
+}
+
+function editDeviceUpdate() {
+	device = editDeviceGetDeviceObject();
+	if (device.id > 0) {
+		// Edit existing device
+		$.ajax({
+		  type : "PUT",
+		  contentType: "application/json",
+		  url : "/device/"+device.id+"/config",
+		  data : JSON.stringify(device),
+		  success : function(response) {
+			// Close page
+			editDeviceClose();
+			refreshPage();
+		  },
+		  error : function(xhr, status, error) {
+			$("#popupDeviceErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+			$("#popupDeviceError").popup('open');
+		  }
+		});
+	} else {
+		// Create new device
+		$.ajax({
+		  type : "POST",
+		  contentType: "application/json",
+		  url : "/devices/config",
+		  data : JSON.stringify(device),
+		  success : function(response) {
+			// Close page
+			editDeviceClose();
+			refreshPage();
+		  },
+		  error : function(xhr, status, error) {
+			$("#popupDeviceErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+			$("#popupDeviceError").popup('open');
+		  }
+		});
+	}
+}
+
+function editDeviceClose() {
+	$(':mobile-pagecontainer').pagecontainer('change', '#device_config_overview');
+}
+
+function editDeviceDelete() {
+	$.ajax({
+	  type : "DELETE",
+	  url : "/device/"+$("#device_config_id").val()+"/config",
+	  success : function(response) {
+		// Close page
+		$("#popupDelete").popup("close");
+		editDeviceClose();
+		refreshPage();
+	  },
+	  error : function(xhr, status, error) {
+		$("#popupDeviceErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+		$("#popupDeviceError").popup('open');
+	  }
+	});
+}
+
+function editDeviceDeleteCancel() {
+	$("#popupDelete").popup("close");
+}
+
 </script>
 </head>
 <body>
 
-<!-- Device page -->
+
+<!----------------------------------------------------------------------------
+     Group / Device page 
+----------------------------------------------------------------------------->
 <div data-role="page" id="devices">
 
 	<div data-role="panel" id="menu">
-		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Configuration</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-edit" data-rel="close">Event Configuration</a>
+		<a href="#device_config_overview" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Device Configuration</a>
 		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
@@ -180,18 +335,22 @@ function dimGroup(value, id){
 	</div>
 </div><!-- /page -->
 
-<!-- Configuration page -->
+
+<!----------------------------------------------------------------------------
+     Event Configuration page 
+----------------------------------------------------------------------------->
 <div data-role="page" id="configuration">
 
 	<div data-role="panel" id="menu_config">
 		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
+		<a href="#device_config_overview" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Device Configuration</a>
 		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
 
 	<div data-role="header" id="header">
 		<a href="#menu_config" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
-		<h1>Configuration</h1>
+		<h1>Event Configuration</h1>
 	</div>
 	
 	<div role="main" class="ui-content">
@@ -217,12 +376,111 @@ function dimGroup(value, id){
 	</div>
 </div><!-- /page -->
 
-<!-- Log page -->
+
+<!----------------------------------------------------------------------------
+     Device Configuration page overview
+----------------------------------------------------------------------------->
+<div data-role="page" id="device_config_overview">
+
+	<div data-role="panel" id="menu_device_config">
+		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-edit" data-rel="close">Event Configuration</a>
+		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
+	</div>
+
+	<div data-role="header" id="header">
+		<a href="#menu_device_config" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
+		<h1>Device configuration</h1>
+	</div>
+
+	<div role="main" class="ui-content">
+		<ul data-role="listview" id="device_config_list">
+			<!-- Dynamically created device list items goes here -->
+		</ul>	
+	</div>	
+		
+	<div data-role="footer">
+		<a data-role="button" data-icon="plus" id="new_device">New device</a>
+	</div>
+
+</div><!-- /page -->
+
+<!----------------------------------------------------------------------------
+     Device Configuration page for a specific device
+----------------------------------------------------------------------------->
+<div data-role="page" id="device_config">
+
+	<div data-role="header">
+		<h1 id="device_config_heading">Device ID</h1>
+	</div>
+
+	<div role="main" class="ui-content">
+		<input type="hidden" name="id" id="device_config_id" value="">
+		<label for="device_config_name">Name:</label>
+		<input type="text" name="name" id="device_config_name" value="" data-theme="a">
+		<label for="device_config_protocol">Protocol:</label>
+		<input type="text" name="protocol" id="device_config_protocol" value="" data-theme="a">
+		<label for="device_config_model">Model:</label>
+		<input type="text" name="model" id="device_config_model" value="" data-theme="a">
+		<h2>Parameters:</h2>
+		<label for="device_config_devices">Devices:</label>
+		<input type="text" name="devices" id="device_config_devices" value="" data-theme="a">
+		<label for="device_config_house">House:</label>
+		<input type="text" name="house" id="device_config_house" value="" data-theme="a">
+		<label for="device_config_unit">Unit:</label>
+		<input type="text" name="unit" id="device_config_unit" value="" data-theme="a">
+		<label for="device_config_code">Code:</label>
+		<input type="text" name="code" id="device_config_code" value="" data-theme="a">
+		<label for="device_config_system">System:</label>
+		<input type="text" name="system" id="device_config_system" value="" data-theme="a">
+		<label for="device_config_units">Units:</label>
+		<input type="text" name="units" id="device_config_units" value="" data-theme="a">
+		<label for="device_config_fade">Fade:</label>
+		<input type="text" name="fade" id="device_config_fade" value="" data-theme="a">
+	</div>	
+		
+	<div data-role="footer">
+		<fieldset data-role="controlgroup" data-type="horizontal">
+			<button class="ui-btn ui-corner-all" onclick="editDeviceUpdate()">Save</button>
+			<button class="ui-btn ui-corner-all" id="copy_device" onclick="editDeviceCopy()">Copy</button>
+			<button class="ui-btn ui-corner-all" onclick="editDeviceClose()">Cancel</button>
+			<a href="#popupDelete" id="delete_device" data-rel="popup" data-role="button" class="ui-btn-right" style="background: PeachPuff;">Delete</a>
+		</fieldset>		
+	</div>
+
+	<!-- Are you sure to delete device popup -->
+	<div data-role="popup" id="popupDelete"style="max-width:400px;" class="ui-corner-all" data-history="false">
+		<div data-role="header" data-theme="a" class="ui-corner-top">
+			<h1>Delete Device?</h1>
+		</div>
+		<div data-role="content" data-theme="d" class="ui-corner-bottom ui-content">
+			<h3 class="ui-title">Are you sure you want to delete this device?</h3>
+			<p>This action cannot be undone.</p>
+			<fieldset class="ui-grid-a">
+				<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="editDeviceDeleteCancel()">Cancel</button></div>
+				<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-b ui-shadow" onclick="editDeviceDelete()">Delete</button></div>
+			</fieldset>	
+		</div>
+	</div>
+
+	<!-- Popup dialog: Device error -->
+	<div data-role="popup" id="popupDeviceError" class="ui-content" data-theme="e" style="max-width:350px; background-color: wheat;">
+		<a href="#" data-rel="back" data-role="button" data-theme="a" data-icon="delete" data-iconpos="notext" class="ui-btn-left">Close</a>
+		<p><strong>ERROR!</strong></p>
+        <p id="popupDeviceErrorMsg">Reason not known</p>
+	</div>
+</div><!-- /page -->
+
+<!----------------------------------------------------------------------------
+     Log page
+----------------------------------------------------------------------------->
 <div data-role="page" id="log">
 
 	<div data-role="panel" id="menu_log">
 		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
-		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Configuration</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-edit" data-rel="close">Event Configuration</a>
+		<a href="#device_config_overview" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Device Configuration</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
 
@@ -236,11 +494,12 @@ function dimGroup(value, id){
 		<!-- Log is filled here -->
 		<pre id="log_area"></pre>
 	</div>	
-		
+	
 	<div data-role="footer">
 		<!--<h4>Footer</h4>-->
 	</div>
 </div><!-- /page -->
+
 
 </body>
 </html>

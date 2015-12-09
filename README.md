@@ -11,12 +11,12 @@ Mini Automation Server has following features:
 * Restrict your devices to only turn on or off if sun is up or down
 * Dimming support for devices that are dimmable
 * Group your devices
-* WEB user interface for turning on/off your groups or devices from a web browser or mobile device.
+* WEB user interface for turning on/off your groups or devices and edit devices and configuration from a web browser or mobile device.
 * WEB API for developing your own remote applications
 
 ![screenshoot](screenshot.jpg)
 
-All scheduling and configurations are made in a simple user editable text file called configuration file.
+All scheduling and configurations are made in a simple user editable text file called configuration file. Alternatively the configuration can be edited using the WEB user interface.
 
 There exists many other home automation software's on the market (both open source and commercial), such as Switch King, NexaHome, HomeAutomation etc. However, for many users Mini Automation Server will have sufficient functionality for simple scheduling.
 
@@ -29,11 +29,15 @@ The application has been successfully executed on a [Raspberry Pi](http://www.ra
 
 ### Basic Installation
 1. Install the telldus-core software and connect your Tellstick or Tellstick Duo. See the [Telldus web page](http://www.telldus.se/) for more information.
-2. Configure your devices using the application provided by Telldus on Windows or by modify */etc/tellstick.conf* on Linux. See the [Telldus web page](http://www.telldus.se/) for more information.
-3. Copy the scripts provided here to a folder of your choice. If you are running the software on a Raspberry Pi it is recommended to copy the files to the folder */home/pi/mas/*.
+2. Copy the scripts provided here to a folder of your choice. If you are running the software on a Raspberry Pi it is recommended to copy the files to the folder */home/pi/mas/*.
+3. Configure your devices using the MAS WEB user interface, alternatively the application provided by Telldus on Windows or by modify */etc/tellstick.conf* on Linux. See the [Telldus web page](http://www.telldus.se/) for more information.
+
+If you wish to edit the devices using the MAS WEB user interface, secure that tellstick.conf is writable by all users (sudo chmod a+w /etc/tellstick.conf).
 
 ### Configuration
 By default the configuration file loaded from the same folder as the main program, *mas.py*. The default name is *mas.config*. The file name and folder can be changed using the *-c* option when running the application. 
+
+The configuration file can also be edited online using the MAS WEB user interface.
 
 The devices are identified by the unique ID assigned in step 2 of "Basic Installation" above.
 
@@ -93,6 +97,8 @@ You may optionally start the WEB interface (using HTML and JavaScript) and expor
 	
 Port 8080 is used by default if the -p option is omitted. The startup script, mas.sh, will start the WEB interface/API by default.
 
+It is recommended to install the [CherryPy](www.cherrypy.org) WEB framework (you can just copy the CherryPy to the mas folder) since this framework is much better / faster than the default python framework WSGIref.
+
 ### Start as a Service
 An init.d script is provided for Debian based platforms, such as [Rasbian OS](http://www.raspbian.org/) for [Raspberry Pi](http://www.raspberrypi.org/). Following instruction assumes that the scripts are copied to */home/pi/mas/*. If a different folder is used, please change the *DIR* variable in *mas.sh*.
 
@@ -105,12 +111,12 @@ An init.d script is provided for Debian based platforms, such as [Rasbian OS](ht
 
 Now reboot the system. Check that the application is running.
 
-    $ /etc/init.d/mas.sh status
+    $ sudo service mas.sh status
     [ ok ] /home/pi/mas/mas.py is running.
 
-If the configuration file is updated, restart the application by rebooting the system or execute:
+If the configuration file is updated then execute:
 
-    $ sudo /etc/init.d/mas.sh restart
+    $ sudo service mas.sh restart
     [ ok ] Stopping system mas daemon:.
     [FAIL] /home/pi/mas/mas.py is not running ... failed!
     [ ok ] Starting system mas daemon:.
@@ -120,6 +126,10 @@ If the configuration file is updated, restart the application by rebooting the s
 This application is written by Joel Eriksson and is licensed under the GNU Public License.
 
 ### Version history
+**1.2.2** (January 1, 2016)
+
+* Added support for editing, deleting and creating devices online
+
 **1.2.1** (December 3, 2015)
 
 * Added support view log and edit configuration online
