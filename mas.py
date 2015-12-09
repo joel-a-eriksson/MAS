@@ -77,6 +77,8 @@ class TelldusLibrary:
             self.library = cdll.LoadLibrary(library_location)
 
         self.library.tdGetName.restype = c_char_p
+        self.library.tdSetName.argtypes = [ c_int, c_char_p ]
+        self.library.tdSetName.restype = c_int
         self.library.tdLastSentValue.restype = c_char_p
         self.library.tdGetProtocol.restype = c_char_p
         self.library.tdGetModel.restype = c_char_p
@@ -105,6 +107,11 @@ class TelldusLibrary:
             
     def get_name(self, device_id):
         return self.library.tdGetName(device_id)
+        
+    def set_name(self, device_id, name):
+        if(self.library.tdSetName(device_id, name.strip()) == 0):
+             raise Exception("Could not change device name '" + name.strip() + 
+                             "'. Secure that tellstick.conf is writeable.")
        
     def turn_on(self,devices):
         ''' Turn on one or more devices. Will try on all IDs. 
@@ -497,10 +504,22 @@ class TimeEvent:
 ###############################################################################
 class WebAPI:
     
-    def __init__(self, host, port, control, groups, config_file, log_file, 
-                 timer_thread):
+    def _select_server(self):
+        # Check if Cherrypy is installed or select WSGIRef 
+        #(requires no installation)
+        try:
+            from cherrypy import wsgiserver
+            return "cherrypy"
+        except ImportError:
+            return "wsgiref"
+    
+    def __init__(self, host, port, server, control, groups, config_file, 
+                 log_file, timer_thread):
         self.host = host
         self.port = port
+        if(server == ""):
+            server = self._select_server()
+        self.backend_server = server
         self.control = control
         self.groups = groups
         self.config_file = config_file
@@ -514,6 +533,8 @@ class WebAPI:
                        callback=self._get_devices)
         self.app.route('/device/<id:int>', method="GET", 
                        callback=self._get_device)
+        self.app.route('/device/<id:int>', method="PUT", 
+                       callback=self._put_device)
         self.app.route('/device/<id:int>/on', method="GET", 
                        callback=self._turn_on_device)
         self.app.route('/device/<id:int>/off', method="GET", 
@@ -542,7 +563,8 @@ class WebAPI:
                        callback=self._file) 
                        
     def start(self):
-        self.app.run(host=self.host, port=self.port)
+        self.app.run(server=self.backend_server, host=self.host, 
+                     port=self.port, debug=True)
 
     def _return_success(self):
         bottle.response.content_type = 'application/json'
@@ -575,7 +597,19 @@ class WebAPI:
             return device
         else:
             bottle.abort(400, "Device with ID '" + str(id) + "' not found")
-        
+
+    def _put_device(self, id):
+        device = bottle.request.json
+        if( device == None):
+            bottle.abort(400, "Could not parse JSON - secure that content type is application/json")
+        elif(id != device["id"]):
+            bottle.abort(400, "Device ID in request does not match URI ID")
+        elif (len(device["name"]) < 1):
+            bottle.abort(400, "Device name cannot be empty")
+        else:
+            print(str(self.control.set_name(int(id), device["name"])))
+            
+            
     def _get_devices(self):
         result = []
         for id in self.control.get_device_IDs():
@@ -730,7 +764,10 @@ class WebAPI:
             sun = sunstate.Sun(lat_long[0], lat_long[1], sunstate.LocalTimezone())
         
         # Update the timer thread with new events and sun
-        self.timer_thread.change_data(events, sun)        
+        self.timer_thread.change_data(events, sun)
+        
+        # Update the groups
+        self.groups = groups
 
         return self._return_success() 
  
@@ -755,6 +792,7 @@ def usage():
     print("  -w ipaddr : enable WebAPI and use provided ip address (default disabled)")
     print("  -p port   : port for WebAPI (default 8080)")
     print("  -d        : debug mode (commands writted to log file only)")
+    print("  -s        : server (default: prio 1 'cherrypy', prio 2 'wsgiref')")
     print("  -?        : this help")
             
 def main():
@@ -767,11 +805,12 @@ def main():
     config_file = path + "mas.config"
     log_file = path + "mas.log"
     ip_address = ""
+    server = ""
     port = 8080
     debug_mode = False    
     
     try:
-        opts, args = getopt.getopt(sys.argv[1:], "?c:l:w:p:d")
+        opts, args = getopt.getopt(sys.argv[1:], "?c:l:w:p:ds:")
     except getopt.GetoptError as e:
         print(str(e)+"\n")
         usage()
@@ -788,6 +827,8 @@ def main():
             port = int(a.strip())
         elif o == "-d":
             debug_mode = True
+        elif o == "-s":
+            server = a.strip()
         else:
             usage()
             exit(2)
@@ -827,7 +868,7 @@ def main():
     if(ip_address != ""):
         logging.info("WebAPI started on IP: "+ip_address+" Port: "+str(port))
         try:
-            webApi = WebAPI(ip_address, port, control_library, groups,
+            webApi = WebAPI(ip_address, port, server, control_library, groups,
                             config_file, log_file, timer_thread)
             webApi.start()
         except Exception as e:

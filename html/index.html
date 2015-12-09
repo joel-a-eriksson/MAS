@@ -6,6 +6,12 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 
 <link rel="stylesheet" href="jquery.mobile-1.4.4.min.css" />
+<style>
+	/* Make horizontal buttons fill width of screen 
+	.ui-grid-a, .ui-grid-a .ui-controlgroup-controls {width: 100%}
+	.button_left { width: 45.5%; float: left; margin-left: 1%}
+	.button_right {width: 45.5%}	*/
+</style>
 <script src="jquery-1.11.1.min.js"></script>
 <script src="jquery.mobile-1.4.4.min.js"></script>
 <script>
@@ -14,12 +20,14 @@ $(document).ready(function(){
 	$.getJSON("/groups",function(groups){
 		$.each(groups, function(i, group){
 			listGroup(group);
-		});		
+		});
 	});
 	$.getJSON("/devices",function(devices){
 		$.each(devices, function(i, device){
 			listDevice(device);
 		});
+		$("#device_config_list").listview('refresh');
+		
 	});
 	$.get("/configuration",function(config){
 		$("#config_area").val(config);
@@ -46,12 +54,19 @@ $(document).ready(function(){
 		});
 	});
 	$( "#update_log" ).on( "click", function() {
+		$.get("/log",function(log){
 			$("#log_area").text(log);
 		});
+	});
 });
 
+function refreshPage() {
+	location.reload();
+}
+
 function listDevice(device){
-	device_element =
+	// First fill in the device list in the Groups / Devices list
+	var device_element =
 	'<li>' +
 	'	<h1 align="center">' + device.name + '</h1>';
 	
@@ -60,7 +75,7 @@ function listDevice(device){
 		'<fieldset class="ui-grid-a">'+
 		'	<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOn('+device.id+')">On</button></div>'+
 		'	<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOff('+device.id+')">Off</button></div>'+
-		'</fieldset>';		
+		'</fieldset>';	
 	}
 	if(device.supports_dim){
 		device_element +=
@@ -73,6 +88,11 @@ function listDevice(device){
 	if(device.supports_dim){
 		$("#device_list").trigger("create");
 	}
+	
+	// Then list the device in the configure device list
+	var device_config_element =
+	'<li onclick="editDevice('+device.id+')">' + device.id + ": " + device.name + '</li>';
+	$("#device_config_list").append(device_config_element);
 }
 
 function turnOn(id){
@@ -100,7 +120,7 @@ function dim(value, id){
 }
 
 function listGroup(group){
-	group_element =
+	var group_element =
 	'<li>' +
 	'	<h1 align="center">(G) ' + group.name + '</h1>';
 	
@@ -145,15 +165,53 @@ function dimGroup(value, id){
 	}
 }
 
+function editDevice(id) {
+	$.getJSON("/device/"+id,function(device){
+		$("#device_config_heading").text("Device " + device.id);
+		$("#device_config_id").val(device.id);
+		$("#device_config_name").val(device.name);		
+		$(':mobile-pagecontainer').pagecontainer('change', '#device_config');
+	});
+}
+
+function editDeviceUpdate() {
+	var deviceUrl = "/device/"+$("#device_config_id").val();
+	$.getJSON(deviceUrl,function(device){
+		device.name = $("#device_config_name").val();
+        $.ajax({
+          type : "PUT",
+          contentType: "application/json",
+          url : deviceUrl,
+          data : JSON.stringify(device),
+          success : function(response) {
+            // Close page
+            editDeviceClose();
+			refreshPage();
+          },
+          error : function(xhr, status, error) {
+            alert( "Error: " + error);
+          }
+        });
+	});
+}
+
+function editDeviceClose() {
+	$(':mobile-pagecontainer').pagecontainer('change', '#device_config_overview');
+}
+
 </script>
 </head>
 <body>
 
-<!-- Device page -->
+
+<!----------------------------------------------------------------------------
+     Group / Device page 
+----------------------------------------------------------------------------->
 <div data-role="page" id="devices">
 
 	<div data-role="panel" id="menu">
-		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Configuration</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-edit" data-rel="close">Event Configuration</a>
+		<a href="#device_config_overview" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Device Configuration</a>
 		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
@@ -178,18 +236,22 @@ function dimGroup(value, id){
 	</div>
 </div><!-- /page -->
 
-<!-- Configuration page -->
+
+<!----------------------------------------------------------------------------
+     Event Configuration page 
+----------------------------------------------------------------------------->
 <div data-role="page" id="configuration">
 
 	<div data-role="panel" id="menu_config">
 		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
+		<a href="#device_config_overview" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Device Configuration</a>
 		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
 
 	<div data-role="header" id="header">
 		<a href="#menu_config" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
-		<h1>Configuration</h1>
+		<h1>Event Configuration</h1>
 	</div>
 	
 	<div role="main" class="ui-content">
@@ -215,12 +277,68 @@ function dimGroup(value, id){
 	</div>
 </div><!-- /page -->
 
-<!-- Log page -->
+
+<!----------------------------------------------------------------------------
+     Device Configuration page overview
+----------------------------------------------------------------------------->
+<div data-role="page" id="device_config_overview">
+
+	<div data-role="panel" id="menu_device_config">
+		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-edit" data-rel="close">Event Configuration</a>
+		<a href="#log" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-bars" data-rel="close">Log</a>
+		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
+	</div>
+
+	<div data-role="header" id="header">
+		<a href="#menu_device_config" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
+		<h1>Device configuration</h1>
+	</div>
+
+	<div role="main" class="ui-content">
+		<ul data-role="listview" id="device_config_list">
+			<!-- Dynamically created device list items goes here -->
+		</ul>	
+	</div>	
+		
+	<div data-role="footer">
+	</div>
+	
+</div><!-- /page -->
+
+<!----------------------------------------------------------------------------
+     Device Configuration page for a specific device
+----------------------------------------------------------------------------->
+<div data-role="page" id="device_config">
+
+	<div data-role="header">
+		<h1 id="device_config_heading">Device ID</h1>
+	</div>
+
+	<div role="main" class="ui-content">
+		<label for="device_config_name">Name:</label>
+		<input type="text" name="name" id="device_config_name" value="" data-theme="a">
+		<input type="hidden" name="id" id="device_config_id" value="">
+	</div>	
+		
+	<div data-role="footer">
+		<fieldset data-role="controlgroup" data-type="horizontal">
+			<button class="ui-btn ui-corner-all" onclick="editDeviceUpdate()">Update</button>
+			<button class="ui-btn ui-corner-all" onclick="editDeviceClose()">Cancel</button>
+		</fieldset>	
+	</div>
+
+</div><!-- /page -->
+
+<!----------------------------------------------------------------------------
+     Log page
+----------------------------------------------------------------------------->
 <div data-role="page" id="log">
 
 	<div data-role="panel" id="menu_log">
 		<a href="#devices" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-home" data-rel="close">Groups/Devices</a>
-		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Configuration</a>
+		<a href="#configuration" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-edit" data-rel="close">Event Configuration</a>
+		<a href="#device_config_overview" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-gear" data-rel="close">Device Configuration</a>
 		<a href="#header" class="ui-btn ui-shadow ui-btn-icon-right ui-icon-back" data-rel="close">Back</a>
 	</div>
 
@@ -234,11 +352,12 @@ function dimGroup(value, id){
 		<!-- Log is filled here -->
 		<pre id="log_area"></pre>
 	</div>	
-		
+	
 	<div data-role="footer">
 		<!--<h4>Footer</h4>-->
 	</div>
 </div><!-- /page -->
+
 
 </body>
 </html>
