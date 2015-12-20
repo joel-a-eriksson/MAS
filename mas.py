@@ -730,7 +730,10 @@ class WebAPI:
             sun = sunstate.Sun(lat_long[0], lat_long[1], sunstate.LocalTimezone())
         
         # Update the timer thread with new events and sun
-        self.timer_thread.change_data(events, sun)        
+        self.timer_thread.change_data(events, sun)
+        
+        # Update the groups
+        self.groups = groups
 
         return self._return_success() 
  
