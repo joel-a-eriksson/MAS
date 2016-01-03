@@ -58,6 +58,9 @@ $(document).ready(function(){
 			$("#log_area").text(log);
 		});
 	});
+	$( "#new_device" ).on( "click", function() {
+		editDeviceNew();
+	});
 });
 
 function refreshPage() {
@@ -166,37 +169,133 @@ function dimGroup(value, id){
 }
 
 function editDevice(id) {
-	$.getJSON("/device/"+id,function(device){
+	$.getJSON("/device/"+id+"/config",function(device){
 		$("#device_config_heading").text("Device " + device.id);
 		$("#device_config_id").val(device.id);
-		$("#device_config_name").val(device.name);		
+		$("#device_config_name").val(device.name);	
+		$("#device_config_protocol").val(device.protocol);
+		$("#device_config_model").val(device.model);
+		$("#device_config_devices").val(device.parameters.devices);
+		$("#device_config_house").val(device.parameters.house);
+		$("#device_config_unit").val(device.parameters.unit);
+		$("#device_config_code").val(device.parameters.code);
+		$("#device_config_system").val(device.parameters.system);
+		$("#device_config_units").val(device.parameters.units);
+		$("#device_config_fade").val(device.parameters.fade);
+		$("#copy_device").show();
+		$("#delete_device").show();
 		$(':mobile-pagecontainer').pagecontainer('change', '#device_config');
 	});
 }
 
+function editDeviceNew() {
+	$("#device_config_heading").text("New device");
+	$("#device_config_id").val(-1);
+	$("#device_config_name").val("");	
+	$("#device_config_protocol").val("");
+	$("#device_config_model").val("");
+	$("#device_config_devices").val("");
+	$("#device_config_house").val("");
+	$("#device_config_unit").val("");
+	$("#device_config_code").val("");
+	$("#device_config_system").val("");
+	$("#device_config_units").val("");
+	$("#device_config_fade").val("");
+	$("#copy_device").hide();
+	$("#delete_device").hide();
+	$(':mobile-pagecontainer').pagecontainer('change', '#device_config');
+}
+
+function editDeviceCopy() {
+	$("#device_config_heading").text("New device");
+	$("#device_config_id").val(-1);
+	$("#device_config_name").val("Copy of " + $("#device_config_name").val());
+	$("#copy_device").hide();
+	$("#delete_device").hide();	
+}
+
+function editDeviceGetDeviceObject() {
+	var device = {
+		id: parseInt($("#device_config_id").val()),
+		name: $("#device_config_name").val(),
+		protocol: $("#device_config_protocol").val(),
+		model: $("#device_config_model").val(),
+		parameters: {
+			devices: $("#device_config_devices").val(),
+			house: $("#device_config_house").val(),
+			unit: $("#device_config_unit").val(),
+			code: $("#device_config_code").val(),
+			system: $("#device_config_system").val(),
+			units: $("#device_config_units").val(),
+			fade: $("#device_config_fade").val()
+		}
+	};
+	
+	return device;
+}
+
 function editDeviceUpdate() {
-	var deviceUrl = "/device/"+$("#device_config_id").val();
-	$.getJSON(deviceUrl,function(device){
-		device.name = $("#device_config_name").val();
-        $.ajax({
-          type : "PUT",
-          contentType: "application/json",
-          url : deviceUrl,
-          data : JSON.stringify(device),
-          success : function(response) {
-            // Close page
-            editDeviceClose();
+	device = editDeviceGetDeviceObject();
+	if (device.id > 0) {
+		// Edit existing device
+		$.ajax({
+		  type : "PUT",
+		  contentType: "application/json",
+		  url : "/device/"+device.id+"/config",
+		  data : JSON.stringify(device),
+		  success : function(response) {
+			// Close page
+			editDeviceClose();
 			refreshPage();
-          },
-          error : function(xhr, status, error) {
-            alert( "Error: " + error);
-          }
-        });
-	});
+		  },
+		  error : function(xhr, status, error) {
+			$("#popupDeviceErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+			$("#popupDeviceError").popup('open');
+		  }
+		});
+	} else {
+		// Create new device
+		$.ajax({
+		  type : "POST",
+		  contentType: "application/json",
+		  url : "/devices/config",
+		  data : JSON.stringify(device),
+		  success : function(response) {
+			// Close page
+			editDeviceClose();
+			refreshPage();
+		  },
+		  error : function(xhr, status, error) {
+			$("#popupDeviceErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+			$("#popupDeviceError").popup('open');
+		  }
+		});
+	}
 }
 
 function editDeviceClose() {
 	$(':mobile-pagecontainer').pagecontainer('change', '#device_config_overview');
+}
+
+function editDeviceDelete() {
+	$.ajax({
+	  type : "DELETE",
+	  url : "/device/"+$("#device_config_id").val()+"/config",
+	  success : function(response) {
+		// Close page
+		$("#popupDelete").popup("close");
+		editDeviceClose();
+		refreshPage();
+	  },
+	  error : function(xhr, status, error) {
+		$("#popupDeviceErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+		$("#popupDeviceError").popup('open');
+	  }
+	});
+}
+
+function editDeviceDeleteCancel() {
+	$("#popupDelete").popup("close");
 }
 
 </script>
@@ -302,8 +401,9 @@ function editDeviceClose() {
 	</div>	
 		
 	<div data-role="footer">
+		<a data-role="button" data-icon="plus" id="new_device">New device</a>
 	</div>
-	
+
 </div><!-- /page -->
 
 <!----------------------------------------------------------------------------
@@ -316,18 +416,60 @@ function editDeviceClose() {
 	</div>
 
 	<div role="main" class="ui-content">
+		<input type="hidden" name="id" id="device_config_id" value="">
 		<label for="device_config_name">Name:</label>
 		<input type="text" name="name" id="device_config_name" value="" data-theme="a">
-		<input type="hidden" name="id" id="device_config_id" value="">
+		<label for="device_config_protocol">Protocol:</label>
+		<input type="text" name="protocol" id="device_config_protocol" value="" data-theme="a">
+		<label for="device_config_model">Model:</label>
+		<input type="text" name="model" id="device_config_model" value="" data-theme="a">
+		<h2>Parameters:</h2>
+		<label for="device_config_devices">Devices:</label>
+		<input type="text" name="devices" id="device_config_devices" value="" data-theme="a">
+		<label for="device_config_house">House:</label>
+		<input type="text" name="house" id="device_config_house" value="" data-theme="a">
+		<label for="device_config_unit">Unit:</label>
+		<input type="text" name="unit" id="device_config_unit" value="" data-theme="a">
+		<label for="device_config_code">Code:</label>
+		<input type="text" name="code" id="device_config_code" value="" data-theme="a">
+		<label for="device_config_system">System:</label>
+		<input type="text" name="system" id="device_config_system" value="" data-theme="a">
+		<label for="device_config_units">Units:</label>
+		<input type="text" name="units" id="device_config_units" value="" data-theme="a">
+		<label for="device_config_fade">Fade:</label>
+		<input type="text" name="fade" id="device_config_fade" value="" data-theme="a">
 	</div>	
 		
 	<div data-role="footer">
 		<fieldset data-role="controlgroup" data-type="horizontal">
-			<button class="ui-btn ui-corner-all" onclick="editDeviceUpdate()">Update</button>
+			<button class="ui-btn ui-corner-all" onclick="editDeviceUpdate()">Save</button>
+			<button class="ui-btn ui-corner-all" id="copy_device" onclick="editDeviceCopy()">Copy</button>
 			<button class="ui-btn ui-corner-all" onclick="editDeviceClose()">Cancel</button>
-		</fieldset>	
+			<a href="#popupDelete" id="delete_device" data-rel="popup" data-role="button" class="ui-btn-right" style="background: PeachPuff;">Delete</a>
+		</fieldset>		
 	</div>
 
+	<!-- Are you sure to delete device popup -->
+	<div data-role="popup" id="popupDelete"style="max-width:400px;" class="ui-corner-all" data-history="false">
+		<div data-role="header" data-theme="a" class="ui-corner-top">
+			<h1>Delete Device?</h1>
+		</div>
+		<div data-role="content" data-theme="d" class="ui-corner-bottom ui-content">
+			<h3 class="ui-title">Are you sure you want to delete this device?</h3>
+			<p>This action cannot be undone.</p>
+			<fieldset class="ui-grid-a">
+				<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="editDeviceDeleteCancel()">Cancel</button></div>
+				<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-b ui-shadow" onclick="editDeviceDelete()">Delete</button></div>
+			</fieldset>	
+		</div>
+	</div>
+
+	<!-- Popup dialog: Device error -->
+	<div data-role="popup" id="popupDeviceError" class="ui-content" data-theme="e" style="max-width:350px; background-color: wheat;">
+		<a href="#" data-rel="back" data-role="button" data-theme="a" data-icon="delete" data-iconpos="notext" class="ui-btn-left">Close</a>
+		<p><strong>ERROR!</strong></p>
+        <p id="popupDeviceErrorMsg">Reason not known</p>
+	</div>
 </div><!-- /page -->
 
 <!----------------------------------------------------------------------------

@@ -60,7 +60,7 @@ class TelldusLibrary:
     DIM     = 16
     LEARN   = 32
     ALL_METHODS = TURNON | TURNOFF | BELL | TOGGLE | DIM | LEARN
-    library = None
+    PARAMETERS = ["devices", "house", "unit", "code", "system", "units", "fade"]
 
     def __init__(self):
         library_name = "TelldusCore"
@@ -81,7 +81,12 @@ class TelldusLibrary:
         self.library.tdSetName.restype = c_int
         self.library.tdLastSentValue.restype = c_char_p
         self.library.tdGetProtocol.restype = c_char_p
+        self.library.tdSetProtocol.argtypes = [ c_int, c_char_p ]
         self.library.tdGetModel.restype = c_char_p
+        self.library.tdSetModel.argtypes = [ c_int, c_char_p ]
+        self.library.tdGetDeviceParameter.argtypes = [ c_int, c_char_p, c_char_p]
+        self.library.tdGetDeviceParameter.restype = c_char_p
+        self.library.tdSetDeviceParameter.argtypes = [ c_int, c_char_p, c_char_p]
         self.library.tdGetErrorString.restype = c_char_p
         self.library.tdLastSentValue.restype = c_char_p
 
@@ -91,6 +96,13 @@ class TelldusLibrary:
         for i in range(number_devices):
             devices.append(int(self.library.tdGetDeviceId(i)))
         return devices
+    
+    def new_device(self):
+        device_id = self.library.tdAddDevice();
+        if(device_id < 0):
+            error_msg = self.library.tdGetErrorString(device_id)
+            raise Exception("Could create new device.\n\n" + error_msg)
+        return device_id
         
     def supports_on_off(self, device_id):
         if((self.library.tdMethods(device_id,self.TURNON)  & self.TURNON) and
@@ -112,7 +124,44 @@ class TelldusLibrary:
         if(self.library.tdSetName(device_id, name.strip()) == 0):
              raise Exception("Could not change device name '" + name.strip() + 
                              "'. Secure that tellstick.conf is writeable.")
+
+    def delete_device(self, device_id):
+        if(self.library.tdRemoveDevice(device_id) == 0):
+             raise Exception("Could not delete device with id '" + str(device_id) + 
+                             "'. Secure that tellstick.conf is writeable.")
+
+    def get_protocol(self, device_id):
+        return self.library.tdGetProtocol(device_id)
        
+    def set_protocol(self, device_id, protocol):
+        if(self.library.tdSetProtocol(device_id, protocol) == 0):
+             raise Exception("Could set device protocol for '" + str(device_id) + 
+                             "'. Secure that tellstick.conf is writeable.")
+
+    def get_model(self, device_id):
+        return self.library.tdGetModel(device_id)
+
+    def set_model(self, device_id, model):
+        if(self.library.tdSetModel(device_id, model) == 0):
+             raise Exception("Could set device model for '" + str(device_id) + 
+                             "'. Secure that tellstick.conf is writeable.")
+        
+    def get_parameters(self, device_id):
+        result = {}
+        for parameter in self.PARAMETERS:
+            result[parameter] = self.library.tdGetDeviceParameter(device_id, parameter, "")
+        return result
+        
+    def set_parameters(self, device_id, parameters):
+        for parameter, value in parameters.items():
+            if(parameter not in self.PARAMETERS):
+                raise Exception("Unknown parameter '" + parameter + "'")
+            if(self.library.tdSetDeviceParameter(device_id, parameter, value) == 0):
+                if (value != ""):
+                    raise Exception("Could set device parameter '" + parameter + 
+                                    "' to '" + value +"' for device '" + 
+                                    str(device_id) + "'.")        
+                             
     def turn_on(self,devices):
         ''' Turn on one or more devices. Will try on all IDs. 
                devices -- List of device IDs to turn on       '''
@@ -145,24 +194,24 @@ class TelldusLibrary:
                 else:
                     logging.warning(str(device) + " cannot be dimmed")   
   
-    def last_cmd_was_on(self, device):
+    def last_cmd_was_on(self, device_id):
         ''' True if last command sent to the device was on.
             Note that this don't necessary means that the device is on since
             the device could have been turned off by something else than the
             Tellstick. '''
-        return (self.library.tdLastSentCommand(device, 1) == 1)
+        return (self.library.tdLastSentCommand(device_id, 1) == 1)
         
-    def last_dim_level(self, device):
+    def last_dim_level(self, device_id):
         ''' Return the last dim level sent to the device.
             Note that this don't necessary means that the device currently 
             has this dim value since device could have been dimmed by  
             something else than the Tellstick. ''' 
         try:
-            value = int(self.library.tdLastSentValue(device))
+            value = int(self.library.tdLastSentValue(device_id))
         except:
             value = 0
         return value     
-  
+        
 ###############################################################################
 # LOAD CONFIGURATION FILE HANDLING
 ###############################################################################
@@ -531,10 +580,18 @@ class WebAPI:
     def _route(self):                  
         self.app.route('/devices', method="GET", 
                        callback=self._get_devices)
+        self.app.route('/devices/config', method="GET", 
+                       callback=self._get_devices_config)
+        self.app.route('/devices/config', method="POST", 
+                       callback=self._new_device_config)
         self.app.route('/device/<id:int>', method="GET", 
                        callback=self._get_device)
-        self.app.route('/device/<id:int>', method="PUT", 
-                       callback=self._put_device)
+        self.app.route('/device/<id:int>/config', method="GET", 
+                       callback=self._get_device_config)
+        self.app.route('/device/<id:int>/config', method="PUT", 
+                       callback=self._put_device_config)
+        self.app.route('/device/<id:int>/config', method="DELETE", 
+                       callback=self._delete_device_config)
         self.app.route('/device/<id:int>/on', method="GET", 
                        callback=self._turn_on_device)
         self.app.route('/device/<id:int>/off', method="GET", 
@@ -598,22 +655,79 @@ class WebAPI:
         else:
             bottle.abort(400, "Device with ID '" + str(id) + "' not found")
 
-    def _put_device(self, id):
-        device = bottle.request.json
-        if( device == None):
-            bottle.abort(400, "Could not parse JSON - secure that content type is application/json")
-        elif(id != device["id"]):
-            bottle.abort(400, "Device ID in request does not match URI ID")
-        elif (len(device["name"]) < 1):
-            bottle.abort(400, "Device name cannot be empty")
+    def _get_device_config(self, id):
+        if id in self.control.get_device_IDs():        
+            config = {
+                'id'              : id,
+                'name'            : self.control.get_name(id),
+                'protocol'        : self.control.get_protocol(id),
+                'model'           : self.control.get_model(id),
+                'parameters'      : self.control.get_parameters(id)
+            }
+            bottle.response.content_type = 'application/json'
+            return config
         else:
-            print(str(self.control.set_name(int(id), device["name"])))
+            bottle.abort(400, "Device with ID '" + str(id) + "' not found")
+
+    def _check_device_config_request(self, id, device):
+        if( device == None):
+            bottle.response.status = 400
+            return "Could not parse JSON - secure that content type is application/json"
+        elif(id != device["id"]):
+            bottle.response.status = 400
+            return "Device ID in request does not match URI ID"
+        elif (len(device["name"]) < 1):
+            bottle.response.status = 400
+            return "Device name cannot be empty"
+        elif (len(device["protocol"]) < 1):
+            bottle.response.status = 400
+            return "Device protocol cannot be empty"
+        return ""
             
+    def _update_device_config(self, device):
+        id = int(device["id"])
+        try:
+            self.control.set_name(id, device["name"])
+            self.control.set_protocol(id, device["protocol"])
+            self.control.set_model(id, device["model"])
+            self.control.set_parameters(id, device["parameters"])
+        except Exception as e:
+            bottle.response.status = 500
+            return "Unable update device. \n\n" + e.args[0]
+        return ""    
             
+    def _put_device_config(self, id):
+        device = bottle.request.json
+        result = self._check_device_config_request(id, device)
+        if(result != ""):
+            return result
+        return self._update_device_config(device)
+ 
+    def _new_device_config(self):
+        device = bottle.request.json
+        result = self._check_device_config_request(-1, device)
+        if(result != ""):
+            return result
+        try:
+            device["id"] = self.control.new_device()
+        except Exception as e:
+            bottle.response.status = 500
+            return "Unable to create new device. \n\n" + e.args[0]
+        return self._update_device_config(device)
+
+    def _delete_device_config(self, id):
+        self.control.delete_device(id)        
+        
     def _get_devices(self):
         result = []
         for id in self.control.get_device_IDs():
             result.append(self._get_device(id))
+        return json.dumps(result)
+        
+    def _get_devices_config(self):
+        result = []
+        for id in self.control.get_device_IDs():
+            result.append(self._get_device_config(id))
         return json.dumps(result)
 
     def _turn_on_device(self, id):
