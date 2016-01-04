@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 import getopt, sys, time, threading, re, logging, sunstate, bottle, json, os
 import signal, shutil
 
-__version__ = "1.2.1"
+__version__ = "1.2.2"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
