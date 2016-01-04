@@ -97,7 +97,7 @@ You may optionally start the WEB interface (using HTML and JavaScript) and expor
 	
 Port 8080 is used by default if the -p option is omitted. The startup script, mas.sh, will start the WEB interface/API by default.
 
-It is recommended to install the [CherryPy](www.cherrypy.org) WEB framework (you can just copy the CherryPy to the mas folder) since this framework is much better / faster than the default python framework WSGIref.
+It is recommended to install the [CherryPy](http://www.cherrypy.org) WEB framework (you can just copy the CherryPy to the mas folder) since this framework is much better / faster than the default python framework WSGIref.
 
 ### Start as a Service
 An init.d script is provided for Debian based platforms, such as [Rasbian OS](http://www.raspbian.org/) for [Raspberry Pi](http://www.raspberrypi.org/). Following instruction assumes that the scripts are copied to */home/pi/mas/*. If a different folder is used, please change the *DIR* variable in *mas.sh*.
