@@ -118,14 +118,19 @@ class TelldusLibrary:
             return False
             
     def get_name(self, device_id):
-        return self.library.tdGetName(device_id)
+        name = self.library.tdGetName(device_id)
+        return name
+
         
     def set_name(self, device_id, name):
-        if(self.library.tdSetName(device_id, name.strip()) == 0):
+        logging.info("Change name of device " + str(device_id) + " to : " + name)
+        encoded_name = name.encode('utf-8')
+        if(self.library.tdSetName(device_id, encoded_name) == 0):
              raise Exception("Could not change device name '" + name.strip() + 
                              "'. Secure that tellstick.conf is writeable.")
 
     def delete_device(self, device_id):
+        logging.info("Deleting device " + str(device_id))
         if(self.library.tdRemoveDevice(device_id) == 0):
              raise Exception("Could not delete device with id '" + str(device_id) + 
                              "'. Secure that tellstick.conf is writeable.")
