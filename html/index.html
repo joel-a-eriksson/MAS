@@ -214,6 +214,14 @@ function editDeviceCopy() {
 	$("#delete_device").hide();	
 }
 
+function editDeviceOn() {
+	turnOn($("#device_config_id").val());
+}
+
+function editDeviceOff() {
+	turnOff($("#device_config_id").val());
+}
+
 function editDeviceGetDeviceObject() {
 	var device = {
 		id: parseInt($("#device_config_id").val()),
@@ -446,6 +454,11 @@ function editDeviceDeleteCancel() {
 			<button class="ui-btn ui-corner-all" id="copy_device" onclick="editDeviceCopy()">Copy</button>
 			<button class="ui-btn ui-corner-all" onclick="editDeviceClose()">Cancel</button>
 			<a href="#popupDelete" id="delete_device" data-rel="popup" data-role="button" class="ui-btn-right" style="background: PeachPuff;">Delete</a>
+		</fieldset>
+		<fieldset data-role="controlgroup" data-type="horizontal">
+			<button class="ui-btn ui-corner-all" onclick="editDeviceOn()" style="background: LightBlue;">On</button>
+			<button class="ui-btn ui-corner-all" onclick="editDeviceOff()" style="background: LightBlue;">Off</button>
+			<button class="ui-btn ui-corner-all" onclick="editDeviceLearn()" style="background: LightBlue;">Learn</button>
 		</fieldset>		
 	</div>
 

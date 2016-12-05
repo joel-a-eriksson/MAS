@@ -116,6 +116,12 @@ class TelldusLibrary:
             return True
         else:
             return False
+        
+    def supports_learn(self, device_id):
+        if(self.library.tdMethods(device_id,self.LEARN) & self.LEARN):
+            return True
+        else:
+            return False
             
     def get_name(self, device_id):
         name = self.library.tdGetName(device_id)
@@ -197,7 +203,16 @@ class TelldusLibrary:
                 if(self.supports_dim(device)):
                     self.library.tdDim(device,dim_level)
                 else:
-                    logging.warning(str(device) + " cannot be dimmed")   
+                    logging.warning(str(device) + " cannot be dimmed")
+    
+    def learn(self,devices):
+        ''' Learn one or more devices. Will try on all IDs. 
+               devices -- List of device IDs to learn       '''
+        for device in devices:
+            if(self.supports_learn(device)):
+                self.library.tdLearn(device)
+            else:
+                logging.warning(str(device) + " cannot be learned")    
   
     def last_cmd_was_on(self, device_id):
         ''' True if last command sent to the device was on.
@@ -603,6 +618,8 @@ class WebAPI:
                        callback=self._turn_off_device)
         self.app.route('/device/<id:int>/dim/<level:int>', method="GET", 
                        callback=self._dim_device)
+        self.app.route('/device/<id:int>/learn/<level:int>', method="GET", 
+                       callback=self._learn_device)
         self.app.route('/groups', method="GET", 
                        callback=self._get_groups)
         self.app.route('/group/<id:int>', method="GET", 
@@ -763,6 +780,15 @@ class WebAPI:
             bottle.abort(400, "Dim level '" + str(level) + "' invalid")            
         else:
             self.control.dim([id],level)
+            return self._return_success()
+
+    def _learn_device(self, id):
+        if id not in self.control.get_device_IDs():    
+            bottle.abort(400, "Device with ID '" + str(id) + "' not found") 
+        elif (self.control.supports_learn(id) == False):
+            bottle.abort(400, "Device ID '" + str(id) + "' don't support learn")        
+        else:
+            self.control.learn([id])
             return self._return_success()   
 
     def _get_group(self, id):
