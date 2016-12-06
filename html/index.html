@@ -18,12 +18,21 @@
 
 $(document).ready(function(){
 	$.getJSON("/groups",function(groups){
+		// Groups should be sorted on name in "Groups / Devices"
+		groups.sort(sortElement);
 		$.each(groups, function(i, group){
 			listGroup(group);
 		});
 	});
 	$.getJSON("/devices",function(devices){
+		// Devices should be sorted on id in "Device Configuration"
 		$.each(devices, function(i, device){
+			listDeviceConfig(device);
+		});	
+		// Devices should be sorted on name in "Groups / Devices"
+		devices.sort(sortElement);
+		$.each(devices, function(i, device){
+			listDeviceConfig(device);
 			listDevice(device);
 		});
 		$("#device_config_list").listview('refresh');
@@ -63,12 +72,22 @@ $(document).ready(function(){
 	});
 });
 
+// Used for sorting Devices or Groups
+function sortElement(a,b){
+	if(a.name == b.name)
+		return 0;
+	if(a.name < b.name)
+		return -1;
+	if(a.name > b.name)
+		return 1;
+}
+
 function refreshPage() {
 	location.reload();
 }
 
+// Add device to "Groups / Devices"
 function listDevice(device){
-	// First fill in the device list in the Groups / Devices list
 	var device_element =
 	'<li>' +
 	'	<h1 align="center">' + device.name + '</h1>';
@@ -91,8 +110,10 @@ function listDevice(device){
 	if(device.supports_dim){
 		$("#device_list").trigger("create");
 	}
-	
-	// Then list the device in the configure device list
+}
+
+// Add device to "Device Configuration"
+function listDeviceConfig(device){
 	var device_config_element =
 	'<li onclick="editDevice('+device.id+')">' + device.id + ": " + device.name + '</li>';
 	$("#device_config_list").append(device_config_element);

@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 import getopt, sys, time, threading, re, logging, sunstate, bottle, json, os
 import signal, shutil
 
-__version__ = "1.2.2"
+__version__ = "1.2.3-SNAPSHOT"
 
 ###############################################################################
 # FAKE LIBRARY - FOR TESTING ONLY
@@ -588,6 +588,7 @@ class WebAPI:
         self.port = port
         if(server == ""):
             server = self._select_server()
+        logging.info("Server: " + server)
         self.backend_server = server
         self.control = control
         self.groups = groups
@@ -981,6 +982,9 @@ def main():
     logging.basicConfig(filename=log_file,level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s")
     logging.info('Mini Automation Sever ' + __version__ + ' Initiated')
+    logging.info('config file: ' + config_file)
+    logging.info('log file:    ' + log_file)
+    
             
     try:
         if(not debug_mode):
