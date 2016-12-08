@@ -7,36 +7,58 @@
 
 <link rel="stylesheet" href="jquery.mobile-1.4.4.min.css" />
 <style>
-	/* Make horizontal buttons fill width of screen 
-	.ui-grid-a, .ui-grid-a .ui-controlgroup-controls {width: 100%}
-	.button_left { width: 45.5%; float: left; margin-left: 1%}
-	.button_right {width: 45.5%}	*/
+.device-list {
+    margin-right: -10px;
+    margin-left: -10px;
+}
+
+.device-group {
+	background-color: #e6f7ff;
+}
+
+.device-list-element .ui-block-a, .device-list-element .ui-block-c {
+    width: 20% !important;
+	border-top-style: solid;
+    border-width: 1px;
+    border-color: lightgray;
+}
+
+.device-list-element .ui-block-b {
+    width: 60% !important;
+	text-align: center;	
+	display:table; 
+	border-top-style: solid;
+    border-width: 1px;
+    border-color: lightgray;
+}
+
+.device-list-element .ui-block-b > p {
+	margin-top: 0px;
+	margin-bottom: 0px;
+	display: table-cell;
+	vertical-align: middle;
+	height: 50px;
+}
+
+/* Hide the number input */
+.full-width-slider input {
+    display: none;
+}
+.full-width-slider .ui-slider-track {
+    margin-left: 15px;
+}
 </style>
 <script src="jquery-1.11.1.min.js"></script>
 <script src="jquery.mobile-1.4.4.min.js"></script>
 <script>
 
 $(document).ready(function(){
-	$.getJSON("/groups",function(groups){
-		// Groups should be sorted on name in "Groups / Devices"
-		groups.sort(sortElement);
-		$.each(groups, function(i, group){
-			listGroup(group);
-		});
-	});
-	$.getJSON("/devices",function(devices){
-		// Devices should be sorted on id in "Device Configuration"
-		$.each(devices, function(i, device){
-			listDeviceConfig(device);
-		});	
-		// Devices should be sorted on name in "Groups / Devices"
+	$.getJSON("/groups",updateGroupList);
+	$.getJSON("/devices",function(devices) {
+		updateDeviceConfigList(devices);
+		// Sort by name
 		devices.sort(sortElement);
-		$.each(devices, function(i, device){
-			listDeviceConfig(device);
-			listDevice(device);
-		});
-		$("#device_config_list").listview('refresh');
-		
+		updateDeviceList(devices);
 	});
 	$.get("/configuration",function(config){
 		$("#config_area").val(config);
@@ -86,37 +108,78 @@ function refreshPage() {
 	location.reload();
 }
 
-// Add device to "Groups / Devices"
+function updateDeviceList(devices) {
+	var devices_html = "";
+	$.each(devices, function(i, device){
+		devices_html += listDevice(device);
+	});
+	$("#device-list").append(devices_html);
+	$("#device-group-page").trigger('create');
+}
+
+// Get HTML for a device (for the device-list)
 function listDevice(device){
+	var on_off_disabled = 'disabled=""';
+	if(device.supports_on_off)
+		on_off_disabled = '';
+
 	var device_element =
-	'<li>' +
-	'	<h1 align="center">' + device.name + '</h1>';
-	
-	if(device.supports_on_off){
-		device_element +=
-		'<fieldset class="ui-grid-a">'+
-		'	<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOn('+device.id+')">On</button></div>'+
-		'	<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOff('+device.id+')">Off</button></div>'+
-		'</fieldset>';	
-	}
+		'<fieldset class="ui-grid-b device-list-element">' +
+		'   <div class="ui-block-a"><input type="button" ' + on_off_disabled + ' value="ON" data-mini="true" onclick="turnOn('+device.id+')"></div>' +
+		'   <div class="ui-block-b"><p>' + device.name + '</p></div>' +
+		'   <div class="ui-block-c"><input type="button" ' + on_off_disabled + ' value="OFF" data-mini="true" onclick="turnOff('+device.id+')"></div>' +
+		'</fieldset>';
+
 	if(device.supports_dim){
 		device_element +=
-		'<input type="range" id="dim'+device.id+'" value="'+device.dim_level_last+'" min="'+device.dim_level_min+'" max="'+device.dim_level_max+'" data-highlight="true" onchange="dim(this.value,'+device.id+')">';
+		'<form class="full-width-slider">' +
+		'<input type="range" id="dim'+device.id+'" value="'+device.dim_level_last+'" min="'+device.dim_level_min+'" max="'+device.dim_level_max+
+		'" data-highlight="true" onchange="dim(this.value,'+device.id+')" data-mini="true">' +
+		'</form>';
 	}
 
-	device_element += "</li>";
+	return device_element;
+}
 
-	$("#device_list").append(device_element);
-	if(device.supports_dim){
-		$("#device_list").trigger("create");
-	}
+
+function updateGroupList(groups) {
+	// Sort by name
+	groups.sort(sortElement);
+	var groups_html = "";
+	$.each(groups, function(i, group){
+		groups_html += listGroup(group);
+	});
+	$("#group-list").append(groups_html);
+	$("#device-group-page").trigger('create');
+}
+
+// Get HTML for a group (for the group-list)
+function listGroup(group){
+	var group_element =
+		'<fieldset class="ui-grid-b device-list-element device-group">' +
+		'   <div class="ui-block-a"><input type="button" value="ON" data-mini="true" onclick="turnOnGroup('+group.id+')"></div>' +
+		'   <div class="ui-block-b"><p>' + group.name + '</p></div>' +
+		'   <div class="ui-block-c"><input type="button" value="OFF" data-mini="true" onclick="turnOffGroup('+group.id+')"></div>' +
+		'</fieldset>';
+
+	return group_element;
+}
+
+function updateDeviceConfigList(devices) {
+	// List should are sorted on id by default
+	var devices_html = "";
+	$.each(devices, function(i, device){
+		devices_html += listDeviceConfig(device);
+	});
+	$("#device_config_list").append(devices_html);
+	$("#device-config-page").trigger('create');
 }
 
 // Add device to "Device Configuration"
 function listDeviceConfig(device){
 	var device_config_element =
 	'<li onclick="editDevice('+device.id+')">' + device.id + ": " + device.name + '</li>';
-	$("#device_config_list").append(device_config_element);
+	return device_config_element;
 }
 
 function turnOn(id){
@@ -143,27 +206,7 @@ function dim(value, id){
 	}
 }
 
-function listGroup(group){
-	var group_element =
-	'<li>' +
-	'	<h1 align="center">(G) ' + group.name + '</h1>';
-	
-	if(group.supports_on_off){
-		group_element +=
-		'<fieldset class="ui-grid-a">'+
-		'	<div class="ui-block-a"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOnGroup('+group.id+')">On</button></div>'+
-		'	<div class="ui-block-b"><button class="ui-btn ui-corner-all ui-btn-a ui-shadow" onclick="turnOffGroup('+group.id+')">Off</button></div>'+
-		'</fieldset>';		
-	}
-	if(group.supports_dim){
-		group_element +=
-		'<input type="range" id="dim_group'+group.id+'" value="0" min="'+group.dim_level_min+'" max="'+group.dim_level_max+'" data-highlight="true" onchange="dimGroup(this.value,'+group.id+')">';
-	}
 
-	group_element += "</li>";
-
-	$("#group_list").append(group_element);
-}
 
 function turnOnGroup(id){
 	$.getJSON("/group/"+id+"/on",function(retVal){
@@ -349,14 +392,13 @@ function editDeviceDeleteCancel() {
 		<h1>Groups / Devices</h1>
 	</div>
 
-	<div role="main" class="ui-content">
-		<ul data-role="listview" id="group_list">
-			<!-- Dynamically created group list items goes here -->
-		</ul>
-		<br><br>
-		<ul data-role="listview" id="device_list">
-			<!-- Dynamically created device list items goes here -->
-		</ul>		
+	<div role="main" id="device-group-page" class="ui-content">
+		<div id="group-list" class="device-list">
+			<!-- Dynamically created group items goes here -->
+		</div>
+		<div id="device-list" class="device-list">
+			<!-- Dynamically create device items goes here -->
+		</div>
 	</div>	
 		
 	<div data-role="footer">
@@ -423,7 +465,7 @@ function editDeviceDeleteCancel() {
 		<h1>Device configuration</h1>
 	</div>
 
-	<div role="main" class="ui-content">
+	<div role="main" id="device-config-page" class="ui-content">
 		<ul data-role="listview" id="device_config_list">
 			<!-- Dynamically created device list items goes here -->
 		</ul>	
