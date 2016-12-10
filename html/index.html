@@ -40,16 +40,23 @@
 	height: 50px;
 }
 
-/* Hide the number input */
+/* Hide the number input on slider */
 .full-width-slider input {
     display: none;
 }
 .full-width-slider .ui-slider-track {
     margin-left: 15px;
 }
+/* Make code areas in markdown scrollable */
+pre {
+  white-space: pre;
+  word-wrap: normal;
+  overflow-x: auto;
+}
 </style>
 <script src="jquery-1.11.1.min.js"></script>
 <script src="jquery.mobile-1.4.4.min.js"></script>
+<script src="markdown.min.js"></script>
 <script>
 
 $(document).ready(function(){
@@ -65,6 +72,11 @@ $(document).ready(function(){
 	});
 	$.get("/log",function(log){
 		$("#log_area").text(log);
+	});
+	$.get("/CONFIG_SYNTAX.md",function(markdown_text){
+		var converted_html = markdown.toHTML(markdown_text);
+		$('#config-syntax').append(converted_html);
+		//$("#config-syntax").trigger('create');
 	});
 	$( "#save_config" ).on( "click", function() {
 		$.ajax({
@@ -422,6 +434,7 @@ function editDeviceDeleteCancel() {
 	<div data-role="header" id="header">
 		<a href="#menu_config" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-left ui-icon-bars ui-btn-icon-notext">Menu</a>
 		<h1>Event Configuration</h1>
+		<a href="#config-syntax" data-rel="popup" class="ui-btn ui-shadow ui-corner-all ui-btn-inline ui-btn-icon-right ui-icon-info ui-btn-icon-notext">Help</a>
 	</div>
 	
 	<div role="main" class="ui-content">
@@ -432,6 +445,10 @@ function editDeviceDeleteCancel() {
 		
 	<div data-role="footer">
 		<!--<h4>Footer</h4>-->
+	</div>
+	
+	<!-- Popup dialog: Config Syntax Help -->
+	<div data-role="popup" id="config-syntax">
 	</div>
 	
 	<!-- Popup dialog: Saved successfully -->

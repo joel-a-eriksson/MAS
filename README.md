@@ -78,7 +78,7 @@ The devices are identified by the unique ID assigned in step 2 of "Basic Install
     
 Using the Sunset, Sunrise, Sunup or Sundown requires latitude and longitude to be set (LAT_LONG command)
     
-See the comments in *mas.config* for the complete syntax.    
+See [CONFIG_SYNTAX.md](html/CONFIG_SYNTAX.md) for the complete syntax.    
     
 ### Running
 The application is started by executing the *mas.py* Python script:
