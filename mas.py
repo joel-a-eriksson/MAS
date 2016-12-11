@@ -18,7 +18,7 @@
 #   You should have received a copy of the GNU General Public License
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 ###############################################################################
-
+   
 from ctypes import util
 from ctypes import *
 from threading import Timer
@@ -27,25 +27,6 @@ import getopt, sys, time, threading, re, logging, sunstate, bottle, json, os
 import signal, shutil
 
 __version__ = "1.2.3-SNAPSHOT"
-
-###############################################################################
-# FAKE LIBRARY - FOR TESTING ONLY
-###############################################################################
-class DebugLibrary:
-    def __init__(self):
-        pass
-
-    def log(self, function, devices):
-        logging.info(function + " device(s): " + str(devices)) 
-
-    def turn_on(self,devices):
-        self.log("Turn on", devices)                
-
-    def turn_off(self,devices):
-        self.log("Turn off", devices)            
-                
-    def dim(self,devices,dim_level):
-        self.log("Dim to level: "+str(dim_level), devices)
 
 ###############################################################################
 # TELLDUS TELLSTICK LIBRARY
@@ -129,14 +110,14 @@ class TelldusLibrary:
 
         
     def set_name(self, device_id, name):
-        logging.info("Change name of device " + str(device_id) + " to : " + name)
+        logging.debug("Change name of device " + str(device_id) + " to : " + name)
         encoded_name = name.encode('utf-8')
         if(self.library.tdSetName(device_id, encoded_name) == 0):
              raise Exception("Could not change device name '" + name.strip() + 
                              "'. Secure that tellstick.conf is writeable.")
 
     def delete_device(self, device_id):
-        logging.info("Deleting device " + str(device_id))
+        logging.debug("Deleting device " + str(device_id))
         if(self.library.tdRemoveDevice(device_id) == 0):
              raise Exception("Could not delete device with id '" + str(device_id) + 
                              "'. Secure that tellstick.conf is writeable.")
@@ -176,8 +157,9 @@ class TelldusLibrary:
     def turn_on(self,devices):
         ''' Turn on one or more devices. Will try on all IDs. 
                devices -- List of device IDs to turn on       '''
-        for device in devices:
+        for device in devices:     
             if(self.supports_on_off(device)):
+                logging.debug("Turning ON device " + str(device))
                 self.library.tdTurnOn(device)
             else:
                 logging.warning(str(device) + " cannot be turned on")
@@ -187,6 +169,7 @@ class TelldusLibrary:
                devices -- List of device IDs to turn off       '''
         for device in devices:
             if(self.supports_on_off(device)):
+                logging.debug("Turning OFF device " + str(device))
                 self.library.tdTurnOff(device)
             else:
                 logging.warning(str(device) + " cannot be turned off")     
@@ -201,6 +184,7 @@ class TelldusLibrary:
         else:
             for device in devices:
                 if(self.supports_dim(device)):
+                    logging.debug("Dimming device " + str(device) + " to level " + str(dim_level))
                     self.library.tdDim(device,dim_level)
                 else:
                     logging.warning(str(device) + " cannot be dimmed")
@@ -210,6 +194,7 @@ class TelldusLibrary:
                devices -- List of device IDs to learn       '''
         for device in devices:
             if(self.supports_learn(device)):
+                logging.debug("Send LEARN to device " + str(device))
                 self.library.tdLearn(device)
             else:
                 logging.warning(str(device) + " cannot be learned")    
@@ -937,7 +922,7 @@ def usage():
     print("  -l file   : specify log file (default 'mas.log')")
     print("  -w ipaddr : enable WebAPI and use provided ip address (default disabled)")
     print("  -p port   : port for WebAPI (default 8080)")
-    print("  -d        : debug mode (commands writted to log file only)")
+    print("  -d        : debug mode (more info written to log)")
     print("  -s        : server (default: prio 1 'cherrypy', prio 2 'wsgiref')")
     print("  -?        : this help")
             
@@ -953,7 +938,7 @@ def main():
     ip_address = ""
     server = ""
     port = 8080
-    debug_mode = False    
+    logging_level = logging.INFO    
     
     try:
         opts, args = getopt.getopt(sys.argv[1:], "?c:l:w:p:ds:")
@@ -972,14 +957,14 @@ def main():
         elif o == "-p":
             port = int(a.strip())
         elif o == "-d":
-            debug_mode = True
+            logging_level = logging.DEBUG 
         elif o == "-s":
             server = a.strip()
         else:
             usage()
             exit(2)
 
-    logging.basicConfig(filename=log_file,level=logging.DEBUG,
+    logging.basicConfig(filename=log_file,level=logging_level,
         format="%(asctime)s - %(levelname)s - %(message)s")
     logging.info('Mini Automation Sever ' + __version__ + ' Initiated')
     logging.info('config file: ' + config_file)
@@ -987,10 +972,8 @@ def main():
     
             
     try:
-        if(not debug_mode):
-            control_library = TelldusLibrary();
-        else:
-            control_library = DebugLibrary();
+        control_library = TelldusLibrary();
+
     except:
         errmsg = "Telldus core library is missing. Please install before use."
         logging.error(errmsg)    

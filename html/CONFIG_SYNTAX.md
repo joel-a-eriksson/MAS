@@ -22,8 +22,8 @@ Example for Stockholm / Sweden:
 
 	GROUP <groupID> "<name>" <ID1> [<ID2> .. <IDn>]
 	
-*<groupID>* = G<ID>, for example G1 or G23. The G prefix is not required
-*<IDx>* = Identity of the devices to include in the group
+*groupID* = For example G1 or G23. The G prefix is not required
+*IDx* = Identity of the devices to include in the group
 
 Example:
 
@@ -34,28 +34,28 @@ Example:
 
 	EVENT <time> [<dayofweek>] [<restriction>] <function>
 
-*<time>* = *<hour>:<minute>*, *Sunrise* or *Sunset*
+*time* = *hour:minute*, *Sunrise* or *Sunset*
 
 An optional offset in hours can be give to Sunrise and Sunset.
 For example Sunrise+1.5 Sunrise-3 Sunset+0.25
 
 **NOTE** Sunrise and Sunset requires LAT_LOG to be set.
 
-*<dayofweek>* = Mon/Tue/Wen/Thu/Fri/Sat/Sun
+*dayofweek* = Mon/Tue/Wen/Thu/Fri/Sat/Sun
 
 Any day may be omitted, for example Mon/Fri/Sun, will only trigger
 the event on Mondays, Fridays and Sundays. If omitted event will be 
 trigged all days.
 
-*<restriction>* = *Sunup* or *Sundown*
+*restriction* = *Sunup* or *Sundown*
 
 Will not trigger the event if the restriction is fullfilled.
 
 **NOTE** Sunup and Sundown requires LAT_LOG to be set.
 
-*<function>* = *on(<ID>)* or *off(<ID>)* or *dim(<ID>,<level>)*
+*function* = *on(ID)* or *off(ID)* or *dim(ID,level)*
 
-The <ID> might be a device ID or a group ID (prefix G is needed).
+The ID might be a device ID or a group ID (prefix G is needed).
 
 Valid dim levels are 0 - 255
 
