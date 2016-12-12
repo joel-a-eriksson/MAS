@@ -126,6 +126,15 @@ If the configuration file is updated then execute:
 This application is written by Joel Eriksson and is licensed under the GNU Public License.
 
 ### Version history
+**1.2.3** (December 12, 2016)
+
+* Support for non-english characters on devices in WEB-UI
+* Better overview of the groups and devices, with ON/OFF buttons on the same row
+* Devices / groups are now sorted alphabetically instead of device id
+* Now possible to send on/off/learn from the device configuration page 
+* A separate documentation of the Config Syntax. Also available in the WEB UIs
+* The debug parameter (-d) now adds log entries for all ON, OFF and LEARN commands
+
 **1.2.2** (January 1, 2016)
 
 * Added support for editing, deleting and creating devices online
