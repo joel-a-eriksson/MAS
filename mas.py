@@ -906,12 +906,14 @@ class WebAPI:
         bottle.response.content_type = 'text/plain'
         try:
             fo = open(self.log_file,"r")
-            result = fo.read()
+            result = fo.readlines()
             fo.close()
-            return result
-        except Exception:
+            # Earliest log entry first
+            result.reverse()
+            return ''.join(result)
+        except Exception as ex:
             bottle.response.status = 500
-            return "Unable to open: " + self.log_file 
+            return "Unable to open: " + self.log_file + "\n\nReason:\n" + str(ex)
  
 ###############################################################################
 # MAIN PROGRAM
