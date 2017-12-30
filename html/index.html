@@ -104,6 +104,20 @@ $(document).ready(function(){
 			$("#log_area").text(log);
 		});
 	});
+	$( "#delete_log" ).on( "click", function() {
+		$.ajax({
+			type : "DELETE",
+			dataType : "text",
+			url : "/log",
+			success : function(response) {
+				$( "#update_log" ).click();
+			},
+			error : function(xhr, status, error) {
+				$("#popupSaveErrorMsg").html(xhr.responseText.replace(/(\n)+/g, '<br>'));
+				$("#popupSaveError").popup('open');
+			}
+		});
+	});
 	$( "#new_device" ).on( "click", function() {
 		editDeviceNew();
 	});
@@ -587,7 +601,12 @@ function editDeviceDeleteCancel() {
 	</div>
 	
 	<div role="main" class="ui-content">
-		<a data-role="button" data-icon="refresh" id="update_log">Update</a>
+    <fieldset class="ui-grid-a">
+      <div class="ui-block-a"><a data-role="button" data-icon="refresh" id="update_log">Update</a></div>
+      <div class="ui-block-b"><a data-role="button" data-icon="delete" id="delete_log">Delete</a></div>
+    </fieldset>	
+		
+    
 		<!-- Log is filled here -->
 		<pre id="log_area"></pre>
 	</div>	

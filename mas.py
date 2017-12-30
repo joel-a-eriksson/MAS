@@ -621,7 +621,9 @@ class WebAPI:
         self.app.route('/configuration', method="POST", 
                        callback=self._set_config)
         self.app.route('/log', method="GET", 
-                       callback=self._get_log)                       
+                       callback=self._get_log)
+        self.app.route('/log', method="DELETE", 
+                       callback=self._delete_log)                       
         self.app.route('/', method="GET", 
                        callback=self._index)   
         self.app.route('/<path:path>', method="GET", 
@@ -914,6 +916,16 @@ class WebAPI:
         except Exception as ex:
             bottle.response.status = 500
             return "Unable to open: " + self.log_file + "\n\nReason:\n" + str(ex)
+ 
+    def _delete_log(self):
+        try:
+            with open(self.log_file, 'w'):
+                pass
+            return self._return_success() 
+        except Exception as ex:
+            bottle.response.content_type = 'text/plain'
+            bottle.response.status = 500
+            return "Unable to delete: " + self.log_file + "\n\nReason:\n" + str(ex)
  
 ###############################################################################
 # MAIN PROGRAM
