@@ -43,6 +43,11 @@
 	height: 50px;
 }
 
+/* Style of device button which last command was sent */
+.last-cmd {
+  opacity: 0.5;
+}
+
 /* Hide the number input on slider */
 .full-width-slider input {
     display: none;
@@ -146,17 +151,50 @@ function updateDeviceList(devices) {
 	$("#device-group-page").trigger('create');
 }
 
+// Update if device was turned on or off for one device
+function updateDeviceListLastCmd(deviceId, lastCmdWasOn) {
+  var id_on = "on-device-" + deviceId;
+  var id_off = "off-device-" + deviceId;
+  
+  if(lastCmdWasOn) {
+    $("#" + id_off).removeClass('last-cmd');
+    $("#" + id_on).addClass('last-cmd');
+  } else {
+    $("#" + id_on).removeClass('last-cmd');
+    $("#" + id_off).addClass('last-cmd');
+  }
+}
+
+// Update if device was turned on or off for all devices
+function updateDeviceListLastCmdAll() {
+	$.getJSON("/devices",function(devices) {
+    $.each(devices, function(i, device){
+      updateDeviceListLastCmd(device.id, device.last_cmd_was_on);
+    });
+	});
+}
+
 // Get HTML for a device (for the device-list)
 function listDevice(device){
 	var on_off_disabled = 'disabled=""';
 	if(device.supports_on_off)
 		on_off_disabled = '';
+    
+  var last_cmd_on = '';
+  var last_cmd_off = 'last-cmd';
+  if(device.last_cmd_was_on) {
+    last_cmd_on = 'last-cmd';
+    last_cmd_off = '';
+  }
+  
+  var id_on = "on-device-" + device.id;
+  var id_off = "off-device-" + device.id;
 
 	var device_element =
 		'<fieldset class="ui-grid-b device-list-element">' +
-		'   <div class="ui-block-a"><input type="button" ' + on_off_disabled + ' value="ON" data-mini="true" onclick="turnOn('+device.id+')"></div>' +
+		'   <div class="ui-block-a ' + last_cmd_on + '" id=' + id_on + '><input type="button" ' + on_off_disabled + ' value="ON" data-mini="true" onclick="turnOn('+device.id+')"></div>' +
 		'   <div class="ui-block-b"><p>' + device.name + '</p></div>' +
-		'   <div class="ui-block-c"><input type="button" ' + on_off_disabled + ' value="OFF" data-mini="true" onclick="turnOff('+device.id+')"></div>' +
+		'   <div class="ui-block-c ' + last_cmd_off + '" id=' + id_off + '><input type="button" ' + on_off_disabled + ' value="OFF" data-mini="true" onclick="turnOff('+device.id+')"></div>' +
 		'</fieldset>';
 
 	if(device.supports_dim){
@@ -212,14 +250,18 @@ function listDeviceConfig(device){
 }
 
 function turnOn(id){
+  // To get fast feedback we updated the on/off state for the device
+  updateDeviceListLastCmd(id, true);
 	$.getJSON("/device/"+id+"/on",function(retVal){
-		// TODO
+		updateDeviceListLastCmdAll();
 	});
 }
 
 function turnOff(id){
+  // To get fast feedback we updated the on/off state for the device
+  updateDeviceListLastCmd(id, false);
 	$.getJSON("/device/"+id+"/off",function(retVal){
-		// TODO
+		updateDeviceListLastCmdAll();
 	});
 }
 
@@ -239,13 +281,13 @@ function dim(value, id){
 
 function turnOnGroup(id){
 	$.getJSON("/group/"+id+"/on",function(retVal){
-		// TODO
+		updateDeviceListLastCmdAll();
 	});
 }
 
 function turnOffGroup(id){
 	$.getJSON("/group/"+id+"/off",function(retVal){
-		// TODO
+		updateDeviceListLastCmdAll();
 	});
 }
 
