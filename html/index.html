@@ -249,6 +249,10 @@ function listDeviceConfig(device){
 	return device_config_element;
 }
 
+function learn(id){
+	$.getJSON("/device/"+id+"/learn",function(retVal){});
+}
+
 function turnOn(id){
   // To get fast feedback we updated the on/off state for the device
   updateDeviceListLastCmd(id, true);
@@ -355,6 +359,10 @@ function editDeviceOn() {
 
 function editDeviceOff() {
 	turnOff($("#device_config_id").val());
+}
+
+function editDeviceLearn() {
+	learn($("#device_config_id").val());
 }
 
 function editDeviceGetDeviceObject() {

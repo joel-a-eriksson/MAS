@@ -604,7 +604,7 @@ class WebAPI:
                        callback=self._turn_off_device)
         self.app.route('/device/<id:int>/dim/<level:int>', method="GET", 
                        callback=self._dim_device)
-        self.app.route('/device/<id:int>/learn/<level:int>', method="GET", 
+        self.app.route('/device/<id:int>/learn', method="GET", 
                        callback=self._learn_device)
         self.app.route('/groups', method="GET", 
                        callback=self._get_groups)
